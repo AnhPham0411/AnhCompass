@@ -52,7 +52,6 @@ describe('runDeterministicCheck', () => {
 
   it('passes when file is not in "from" scope', async () => {
     const intent = makeIntent();
-    // src/services/payment.ts is NOT in src/api/**
     const diff = makeDiff('src/services/payment.ts', ["import Stripe from 'stripe';"]);
     const result = await runDeterministicCheck(intent, diff, COMMIT);
     expect(result.verdict.status).toBe('pass');
@@ -70,5 +69,42 @@ describe('runDeterministicCheck', () => {
     const diff = makeDiff('src/api/order.ts', ["import Stripe from 'stripe';"]);
     const result = await runDeterministicCheck(intent, diff, COMMIT);
     expect(result.verdict.evidence[0]?.file).toBe('src/api/order.ts');
+  });
+
+  it('skips via inline anhcompass-disable comment', async () => {
+    const intent = makeIntent();
+    const diff = makeDiff('src/api/order.ts', ["import Stripe from 'stripe'; // anhcompass-disable-line"]);
+    const result = await runDeterministicCheck(intent, diff, COMMIT);
+    expect(result.verdict.status).toBe('pass');
+  });
+
+  it('skips via general disable-next-line comment', async () => {
+    const intent = makeIntent();
+    const diff = makeDiff('src/api/order.ts', [
+      "// anhcompass-disable-next-line",
+      "import Stripe from 'stripe';"
+    ]);
+    const result = await runDeterministicCheck(intent, diff, COMMIT);
+    expect(result.verdict.status).toBe('pass');
+  });
+
+  it('skips via targeted disable-next-line comment', async () => {
+    const intent = makeIntent();
+    const diff = makeDiff('src/api/order.ts', [
+      "// anhcompass-disable-next-line test-rule",
+      "import Stripe from 'stripe';"
+    ]);
+    const result = await runDeterministicCheck(intent, diff, COMMIT);
+    expect(result.verdict.status).toBe('pass');
+  });
+
+  it('does not skip if targeted comment is for different rule', async () => {
+    const intent = makeIntent();
+    const diff = makeDiff('src/api/order.ts', [
+      "// anhcompass-disable-next-line other-rule",
+      "import Stripe from 'stripe';"
+    ]);
+    const result = await runDeterministicCheck(intent, diff, COMMIT);
+    expect(result.verdict.status).toBe('violation');
   });
 });
