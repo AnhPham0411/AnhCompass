@@ -1,64 +1,168 @@
-# AnhCompass — Intent & Drift Layer for Coding Agents
+# AnhCompass 🧭
 
-> **Design Document & Roadmap v1.1** · July 2026 · Owner: Anh · License: MIT (OSS core)
-> **AnhCompass** — the compass that keeps your code and AI agents on the intended path.
-> CLI/binary: `anhcompass` · npm scope: `@anhcompass/*` · GitHub Action: `anhcompass-action`
+> The intent and architectural drift layer for coding agents.
 
----
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue)](https://www.typescriptlang.org/)
 
-## 1. Overview
+**AnhCompass** is an open-source tool designed to keep your codebase and AI coding agents (like Cursor, Claude Code, Antigravity) aligned with your project's architectural decisions. 
 
-### 1.1. The Problem
-
-Coding agents (Claude Code, Antigravity, Cursor, Codex) are getting exceptionally good at **understanding what the code is**, but there is no tool to enforce **what the code should be**:
-
-- Agents are the biggest source of architectural drift: they optimize locally, take shortcuts, and break conventions until the codebase turns into a mess.
-- Knowledge about "why the code is this way" and architectural decisions is scattered across human minds, lost chat logs, or dead ADRs.
-- Existing memory tools (codebase-memory-mcp, CodeGraph, RepoBrain, Memorix) are **descriptive** — they describe the current state, but lack a normative baseline for conformance checking.
-
-### 1.2. The Product
-
-`anhcompass` is an **intent + drift detection layer** that sits on top of existing memory tools:
-
-1. **Intent store** — normative architectural decisions, living in the repo (`.agent/intent/`), git-tracked, machine-readable, and human-reviewable via PRs.
-2. **Drift engine** — compares the current code state with the intent baseline, detects drift, and provides evidence.
-3. **3 Consumption Surfaces**: CLI (`anhcompass`), GitHub Action (PR comment bot), MCP server (agents self-load intents and self-check diffs).
-
-### 1.3. Out of scope (v1)
-
-- ❌ DO NOT build a custom code indexer / knowledge graph (adopt existing backends).
-- ❌ DO NOT block merges in CI (v1 only `warns` — false positives kill trust quickly).
-- ❌ DO NOT auto-update intent baselines based on code.
-- ❌ NO multi-language support yet — v1 focuses on TypeScript/JavaScript.
+As coding agents become more autonomous, they tend to introduce "architectural drift" by optimizing locally and ignoring broader project conventions. AnhCompass provides a **normative baseline**—machine-readable architectural rules that your agents and CI pipelines can enforce.
 
 ---
 
-## 2. Architecture
+## 🌟 Key Features
 
-```
-PROJECT: anhcompass
-TYPE:    CLI Tool + GitHub Action + MCP Server (TypeScript monorepo)
-STACK:   TypeScript (Node 20+), pnpm workspaces
-```
-
-- **GraphProvider adapter** -> Swappable graph backends.
-- **Intent = markdown + frontmatter** -> Readable by humans, parsable by machines (zod).
-- **Deterministic first, LLM second** -> Regex-based checks are free and fast, semantic intents use LLMs only when necessary.
-- **Verdict cache by content hash** -> Re-pushing unchanged code costs $0.
+- **Intent Store:** Store architectural rules in plain Markdown (`.agent/intent/*.md`). Human-readable, machine-enforceable, and tracked via Git.
+- **Deterministic Check:** Lightning-fast regex-based checks for hard rules (like forbidden imports) that cost $0 and run in milliseconds.
+- **Semantic Check:** Uses LLMs (Anthropic Claude) to analyze code logic and semantics against your written intent.
+- **Agent-Ready (MCP Server):** Native integration with Model Context Protocol. AI agents can read your intents before coding and verify their diffs before submitting.
+- **CI/CD Integration:** Includes a GitHub Action to automatically comment on Pull Requests when architectural drift is detected.
 
 ---
 
-## 3. Setup & Run
+## 🚀 Quick Start
+
+### 1. Installation
+
+You can install AnhCompass globally or run it locally via `npx`:
 
 ```bash
-# Dev
-git clone https://github.com/AnhPham0411/AnhCompass && cd AnhCompass
-pnpm install
-cp .env.example .env        # Fill in ANTHROPIC_API_KEY
-pnpm build && pnpm test
-
-# Use on any repo
-cd ~/projects/my-app
-npx anhcompass init              
-npx anhcompass check --diff origin/main
+npm install -g anhcompass
 ```
+
+### 2. Initialize in your repository
+
+Navigate to your project folder and run the initialization command:
+
+```bash
+cd my-project
+anhcompass init
+```
+*This will create the `.agent/intent/` directory, a sample intent, a `.env.example` file, and a GitHub workflow template.*
+
+### 3. Add your Anthropic API Key
+For semantic checks to work, AnhCompass needs an Anthropic API key.
+```bash
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
+*(If no key is provided, AnhCompass will safely fallback to deterministic-only mode).*
+
+### 4. Run Drift Check
+
+Write some code, and before you commit, run:
+
+```bash
+anhcompass check
+```
+AnhCompass will scan your Git diff and report any architectural violations.
+
+---
+
+## 📝 Writing Intents
+
+Intents live in `.agent/intent/`. They use a simple Markdown + Frontmatter format.
+
+### Example: Deterministic Rule (No Lodash)
+Use deterministic rules for strict, pattern-based checks (e.g., forbidden imports).
+
+```yaml
+---
+schema_version: 1
+id: no-lodash
+title: No direct lodash imports
+scope: ["src/**"]
+check: deterministic
+rule: |
+  Do not import lodash directly. Use ES native arrays or custom utilities.
+deterministic:
+  kind: no-import
+  from: ["src/**"]
+  to: ["lodash"]
+severity: warn
+status: active
+---
+
+## Context
+Lodash bloats our bundle size. Use vanilla JS alternatives.
+```
+
+### Example: Semantic Rule (Architecture)
+Use semantic rules for complex architectural logic that requires AI reasoning.
+
+```yaml
+---
+schema_version: 1
+id: isolate-payment-gateway
+title: Isolate Stripe behind PaymentService
+scope: ["src/api/**", "src/services/**"]
+check: semantic
+rule: |
+  API Controllers must never interact directly with the Stripe SDK.
+  All Stripe logic must be encapsulated inside `src/services/payment.ts`.
+severity: warn
+status: active
+---
+
+## Context
+We want to easily swap payment gateways in the future. Leaking Stripe objects to controllers breaks this boundary.
+```
+
+---
+
+## 🤖 MCP Server for Coding Agents
+
+If you use an MCP-compatible agent (like Cursor or Claude Code), you can attach AnhCompass as an MCP server. This allows the AI to automatically read your rules before writing code.
+
+**Start the MCP Server:**
+```bash
+anhcompass-mcp
+```
+**Available MCP Tools:**
+- `list_intents`: Returns all active architectural rules for the current project.
+- `check_drift`: Analyzes the agent's current working tree diff and highlights violations.
+
+---
+
+## ☁️ GitHub Action
+
+AnhCompass comes with a built-in GitHub Action to prevent drift during code review.
+
+```yaml
+name: AnhCompass Drift Check
+on: [pull_request]
+
+jobs:
+  check-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run AnhCompass
+        uses: AnhPham0411/AnhCompass/apps/action@main
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+The bot will leave a sticky comment on the PR detailing any architectural drift, pointing out the exact file and lines that violate the intent.
+
+---
+
+## 🛠️ CLI Commands
+
+| Command | Description |
+|---|---|
+| `anhcompass init` | Scaffold `.agent/intent` directory and templates. |
+| `anhcompass intent new <id>` | Create a new intent markdown file. |
+| `anhcompass compile` | Compile intents into `_index.md` and `manifest.json`. |
+| `anhcompass check` | Scan the current Git diff for intent violations. |
+| `anhcompass doctor` | Verify intent syntax and workspace health. |
+
+---
+
+## 📄 License
+
+MIT License. See [LICENSE](LICENSE) for details.
