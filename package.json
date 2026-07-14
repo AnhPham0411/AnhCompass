@@ -1,0 +1,31 @@
+{
+  "name": "anhcompass",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Intent & drift layer for coding agents",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint \"packages/*/src/**/*.ts\" \"apps/*/src/**/*.ts\"",
+    "typecheck": "pnpm -r typecheck",
+    "format": "prettier --write .",
+    "clean": "pnpm -r clean"
+  },
+  "devDependencies": {
+    "@types/micromatch": "^4.0.9",
+    "@types/node": "^20.17.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.3.0",
+    "tsup": "^8.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.4"
+}

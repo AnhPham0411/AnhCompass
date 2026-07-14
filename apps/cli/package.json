@@ -1,0 +1,26 @@
+{
+  "name": "anhcompass",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "anhcompass": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@anhcompass/core": "workspace:*",
+    "commander": "^12.1.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "tsup": "*",
+    "typescript": "*",
+    "tsx": "*",
+    "@types/node": "*"
+  }
+}
