@@ -1,5 +1,5 @@
 {
-  "name": "@anhcompass/core",
+  "name": "@anhcompass/llm",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -17,18 +17,13 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@anhcompass/graph": "workspace:*",
-    "@anhcompass/llm": "workspace:*",
-    "gray-matter": "^4.0.3",
-    "micromatch": "^4.0.8",
-    "picocolors": "^1.1.1",
+    "@anthropic-ai/sdk": "^0.30.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "tsup": "*",
     "typescript": "*",
-    "vitest": "*",
-    "@types/micromatch": "*",
-    "@types/node": "*"
+    "@types/node": "*",
+    "vitest": "*"
   }
 }
