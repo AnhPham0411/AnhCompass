@@ -1,0 +1,8 @@
+{
+  "intentId": "no-stripe-direct-import",
+  "status": "pass",
+  "confidence": 1,
+  "evidence": [],
+  "checkedAtCommit": "e53b4d8",
+  "engine": "deterministic"
+}

@@ -3,6 +3,7 @@ import { registerCompile } from './commands/compile.js';
 import { registerDoctor } from './commands/doctor.js';
 import { registerIntentNew } from './commands/intent-new.js';
 import { registerCheck } from './commands/check.js';
+import { registerInit } from './commands/init.js';
 
 const program = new Command();
 
@@ -15,6 +16,7 @@ registerCompile(program);
 registerDoctor(program);
 registerIntentNew(program);
 registerCheck(program);
+registerInit(program);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   console.error(err);

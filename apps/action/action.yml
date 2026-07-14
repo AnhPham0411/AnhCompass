@@ -1,0 +1,60 @@
+name: "AnhCompass Drift Check"
+description: "Detect architectural drift using intent-based rules"
+author: "AnhCompass"
+
+inputs:
+  anthropic-api-key:
+    description: "Anthropic API key for semantic checks (optional — deterministic-only if absent)"
+    required: false
+    default: ""
+  intent-dir:
+    description: "Path to intent directory"
+    required: false
+    default: ".agent/intent"
+  diff-ref:
+    description: "Git ref to diff against"
+    required: false
+    default: "origin/main"
+  mode:
+    description: "warn or strict"
+    required: false
+    default: "warn"
+  github-token:
+    description: "GitHub token for PR comments"
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  violations:
+    description: "Number of violations found"
+    value: ${{ steps.check.outputs.violations }}
+  report:
+    description: "Markdown report"
+    value: ${{ steps.check.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Install anhcompass
+      shell: bash
+      run: npx --yes anhcompass@latest --version || true
+
+    - name: Run drift check
+      id: check
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        REPORT=$(node ${{ github.action_path }}/dist/comment.js \
+          --intent-dir "${{ inputs.intent-dir }}" \
+          --diff-ref "${{ inputs.diff-ref }}" \
+          --mode "${{ inputs.mode }}" 2>&1) || true
+        echo "report<<EOF" >> $GITHUB_OUTPUT
+        echo "$REPORT" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
