@@ -1,58 +1,30 @@
 # CLAUDE.md — AnhCompass
 
-## Bối cảnh (đọc 30 giây)
+## Context
 
-AnhCompass = intent & drift layer cho coding agents: intent store normative trong
-`.agent/intent/`, drift engine so code với intent, 3 bề mặt CLI / GitHub Action / MCP.
-Toàn cảnh nằm ở `DESIGN.md` — tham chiếu khi cần, KHÔNG cần đọc lại mỗi session.
-File này là **luật bắt buộc** mỗi session.
+AnhCompass = intent & drift layer for coding agents: normative intent store in `.agent/intent/`, drift engine comparing code with intent, 3 surfaces: CLI / GitHub Action / MCP.
 
-## Luật kiến trúc (vi phạm = làm lại, không thương lượng)
+## Architectural Rules (Violation = Redo, Non-negotiable)
 
-1. **LLM call CHỈ nằm trong `packages/llm`.** Không nơi nào khác được import
-   `@anthropic-ai/sdk` hay gọi HTTP tới bất kỳ LLM API nào.
-2. **Graph backend CHỈ được chạm qua interface `GraphProvider`** trong `packages/graph`.
-   `packages/core` và `apps/*` không được biết codebase-memory-mcp hay CodeGraph tồn tại.
-3. **`packages/core` thuần logic**: không đọc `process.env`, không network, không fs trực
-   tiếp trừ khi nhận path qua tham số, không `console.log`. I/O và wiring nằm ở `apps/*`.
-4. **Mọi dữ liệu từ ngoài đi qua zod trước khi dùng**: frontmatter, env, CLI args, LLM output.
-5. **Verdict không có evidence thì không được mang status `violation`.** Không chắc → `uncertain`.
+1. **LLM calls MUST be inside `packages/llm`.** No other package is allowed to import `@anthropic-ai/sdk` or make HTTP calls to any LLM API.
+2. **Graph backend MUST only be accessed via the `GraphProvider` interface** in `packages/graph`.
+3. **`packages/core` is pure logic**: no `process.env`, no network, no direct `fs` unless path is passed via parameters, no `console.log`. I/O and wiring live in `apps/*`.
+4. **All external data goes through zod before use**: frontmatter, env, CLI args, LLM output.
+5. **A verdict without evidence cannot carry a `violation` status.** If uncertain → `uncertain`.
 
-## Chuẩn code
+## Code Standards
 
 - TypeScript `strict: true`, ESM, Node >= 20, pnpm workspaces.
-- Typed errors (`class IntentParseError extends Error`...); không bare `catch (e) {}` nuốt lỗi.
-- `import type` tách bạch. Function < 40 dòng. Mỗi file một trách nhiệm.
-- Log bằng pino, chỉ ở `apps/*`. Không hardcode secret; thêm env mới → cập nhật `.env.example`.
-- Tên biến có nghĩa — không `x`, `tmp`, `data` làm tên cuối.
+- Typed errors; no bare `catch (e) {}` swallowing errors.
+- Clean separation with `import type`. Functions < 40 lines. Single responsibility per file.
+- Use `pino` for logging, only in `apps/*`. No hardcoded secrets.
+- Meaningful variable names.
 
-## Workflow bắt buộc
-
-1. Làm **đúng 1 task** trong `TASKS-PHASE0.md` mỗi lượt, theo thứ tự T0 → T5.
-2. Task có acceptance test sẵn trong repo → code đến khi test xanh.
-   **KHÔNG sửa acceptance test để nó pass** — test là spec. Tin rằng test sai → dừng lại,
-   nêu lý do, chờ xác nhận.
-3. Trước khi báo xong task: `pnpm lint && pnpm typecheck && pnpm test` đều xanh.
-4. Không tự thêm dependency ngoài danh sách dưới. Cần thêm → hỏi trước, kèm lý do.
-5. Commit theo conventional commits (`feat(core): ...`, `test(cli): ...`).
-
-## Dependencies cho phép (Phase 0)
-
-Runtime: `zod`, `gray-matter`, `micromatch`, `commander`, `picocolors`, `pino` (apps only).
-Dev: `typescript`, `vitest`, `tsx`, `tsup`, `eslint`, `prettier`, `@types/node`, `@types/micromatch`.
-
-## Lệnh
+## Commands
 
 ```bash
 pnpm install
-pnpm -r build        # tsup từng package
-pnpm test            # vitest toàn workspace
+pnpm -r build        # tsup for each package
+pnpm test            # vitest across workspace
 pnpm lint && pnpm typecheck
 ```
-
-## Không làm
-
-- Không code Phase 1+ (drift engine, GraphProvider, LLM) khi Phase 0 chưa xanh hết.
-- Không tạo abstraction "phòng cho tương lai" ngoài những gì DESIGN.md nêu.
-- Không đổi schema intent mà không bump `schema_version` và cập nhật DESIGN.md.
-- Không ghi đè file người dùng (intent, config) khi không có `--force`.
