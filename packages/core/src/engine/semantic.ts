@@ -7,22 +7,29 @@ import {
   buildSemanticPrompt,
   routeModel,
   VERDICT_MAX_OUTPUT_TOKENS,
+  DIFF_PROMPT_CHAR_LIMIT,
+  CONTEXT_PROMPT_CHAR_LIMIT,
   logLlmCall,
 } from '@anhcompass/llm';
 import { z } from 'zod';
 
-const SemanticVerdictResponseSchema = z.object({
+/** Tolerant of LLM output quirks: explicit nulls for optional fields,
+ *  over-long excerpts. Exported for tests. */
+export const SemanticVerdictResponseSchema = z.object({
   status: z.enum(['pass', 'violation', 'uncertain']),
   confidence: z.number().min(0).max(1),
   evidence: z.array(
     z.object({
       file: z.string(),
-      line: z.number().optional(),
-      excerpt: z.string().max(300),
+      line: z
+        .number()
+        .nullish()
+        .transform((v) => v ?? undefined),
+      excerpt: z.string().transform((s) => s.slice(0, 300)),
       reason: z.string(),
     }),
   ),
-  suggestion: z.string().nullable().optional(),
+  suggestion: z.string().nullish(),
 });
 
 type SemanticVerdictResponse = z.infer<typeof SemanticVerdictResponseSchema>;
@@ -59,7 +66,11 @@ export async function runSemanticCheck(opts: SemanticCheckOpts): Promise<Verdict
   }
 
   const allContext = { ...context.snippets, ...diffContext };
-  const estimatedTokens = context.estimatedTokens + diffText.length / 4;
+  // Estimate from what actually reaches the prompt (post-truncation),
+  // otherwise a huge diff gets routed to the expensive model for nothing
+  const estimatedTokens =
+    Math.min(context.estimatedTokens, CONTEXT_PROMPT_CHAR_LIMIT / 4) +
+    Math.min(diffText.length, DIFF_PROMPT_CHAR_LIMIT) / 4;
 
   const model = routeModel(Math.ceil(estimatedTokens));
   const client = new LlmClient({ apiKey, model });
@@ -115,7 +126,7 @@ export async function runSemanticCheck(opts: SemanticCheckOpts): Promise<Verdict
   await logLlmCall(repoRoot, {
     timestamp: new Date().toISOString(),
     intentId: intent.frontmatter.id,
-    model,
+    model: callResult.model, // actual model (provider-mapped), not the routed name
     promptHash: opts.cacheKey,
     inputTokens: usage.inputTokens,
     outputTokens: usage.outputTokens,
@@ -124,12 +135,20 @@ export async function runSemanticCheck(opts: SemanticCheckOpts): Promise<Verdict
     engine: 'semantic',
   });
 
+  // Rule 5: a verdict without evidence cannot carry `violation`
+  const hasEvidence = result.evidence.length > 0;
+  const status = result.status === 'violation' && !hasEvidence ? 'uncertain' : result.status;
+  const suggestion =
+    status === result.status
+      ? (result.suggestion ?? undefined)
+      : 'Model reported a violation without evidence — downgraded to uncertain';
+
   return {
     intentId: intent.frontmatter.id,
-    status: result.status,
-    confidence: result.confidence,
+    status,
+    confidence: status === result.status ? result.confidence : Math.min(result.confidence, 0.5),
     evidence: result.evidence,
-    suggestion: result.suggestion ?? undefined,
+    suggestion,
     checkedAtCommit,
     engine: 'semantic',
   };

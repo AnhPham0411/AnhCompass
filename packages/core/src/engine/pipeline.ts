@@ -1,9 +1,11 @@
+import micromatch from 'micromatch';
 import type { Intent, Verdict } from '../intent/schema.js';
 import type { ParsedDiff } from '@anhcompass/graph';
 import { filterByScope } from './scope.js';
 import { getCachedVerdict, setCachedVerdict, buildCacheKey } from './cache.js';
 import { runDeterministicCheck } from './deterministic.js';
 import { runSemanticCheck } from './semantic.js';
+import { withEnforcement } from './enforcement.js';
 import { join } from 'node:path';
 
 export interface PipelineOpts {
@@ -49,13 +51,11 @@ export async function runPipeline(opts: PipelineOpts): Promise<PipelineResult> {
     const id = intent.frontmatter.id;
     const check = intent.frontmatter.check;
 
-    // Step 4: Cache
+    // Step 4: Cache — key only on hunks inside this intent's scope, so edits
+    // to unrelated files don't invalidate every intent's cache
     const intentContent = JSON.stringify(intent.frontmatter) + intent.body;
-    const relevantHunks = Object.entries(diff.hunks)
-      .filter(([file]) =>
-        diff.files.some((f) => f === file),
-      )
-      .flatMap(([, hunks]) => hunks);
+    const scopedFiles = micromatch(diff.files, intent.frontmatter.scope);
+    const relevantHunks = scopedFiles.flatMap((file) => diff.hunks[file] ?? []);
 
     const modelId = apiKey ? 'semantic' : 'deterministic-only';
     const cacheKey = buildCacheKey(intentContent, relevantHunks, modelId);
@@ -63,7 +63,8 @@ export async function runPipeline(opts: PipelineOpts): Promise<PipelineResult> {
 
     if (cached) {
       onProgress?.(`  [${id}] cache hit`);
-      verdicts.push(cached);
+      // re-resolve enforcement — entries written by older versions may lack it
+      verdicts.push(withEnforcement(intent, cached));
       cacheHits++;
       continue;
     }
@@ -78,6 +79,7 @@ export async function runPipeline(opts: PipelineOpts): Promise<PipelineResult> {
 
       // If violation found deterministically, no need for semantic
       if (verdict.status === 'violation' || check === 'deterministic') {
+        verdict = withEnforcement(intent, verdict);
         await setCachedVerdict(cacheDir, cacheKey, verdict);
         verdicts.push(verdict);
         continue;
@@ -103,7 +105,7 @@ export async function runPipeline(opts: PipelineOpts): Promise<PipelineResult> {
         status: 'uncertain',
         confidence: 0,
         evidence: [],
-        suggestion: 'Set ANTHROPIC_API_KEY to enable semantic checks',
+        suggestion: 'Set an LLM API key (LLM_API_KEY / ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY) to enable semantic checks',
         checkedAtCommit,
         engine: 'semantic',
       };
@@ -119,7 +121,13 @@ export async function runPipeline(opts: PipelineOpts): Promise<PipelineResult> {
       };
     }
 
-    await setCachedVerdict(cacheDir, cacheKey, verdict);
+    verdict = withEnforcement(intent, verdict);
+
+    // Never cache `uncertain` — it may stem from a transient LLM failure or a
+    // missing API key; freezing it would suppress a real verdict on the next run
+    if (verdict.status !== 'uncertain') {
+      await setCachedVerdict(cacheDir, cacheKey, verdict);
+    }
     verdicts.push(verdict);
   }
 

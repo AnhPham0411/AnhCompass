@@ -14,8 +14,10 @@ As coding agents become more autonomous, they tend to introduce "architectural d
 ## 🌟 Key Features
 
 - **Intent Store:** Store architectural rules in plain Markdown (`.agent/intent/*.md`). Human-readable, machine-enforceable, and tracked via Git.
-- **Deterministic Check:** Lightning-fast regex-based checks for hard rules (like forbidden imports) that cost $0 and run in milliseconds.
-- **Semantic Check:** Uses LLMs (Anthropic Claude) to analyze code logic and semantics against your written intent.
+- **Deterministic Check:** Lightning-fast pattern checks for hard rules (forbidden imports, JS/TS **and** Python) that cost $0 and run in milliseconds.
+- **Semantic Check:** Uses LLMs (Anthropic, OpenAI, or Gemini) to analyze code logic and semantics against your written intent.
+- **Hybrid Enforcement:** Only deterministic evidence can *block* a pipeline — LLM verdicts are always warn-level. An AI judgment alone never gates your merge.
+- **Baseline & Regression:** Snapshot verdicts, edit your rules, and get a diff report showing exactly which verdicts flipped — and whether the rule change caused it.
 - **Agent-Ready (MCP Server):** Native integration with Model Context Protocol. AI agents can read your intents before coding and verify their diffs before submitting.
 - **CI/CD Integration:** Includes a GitHub Action to automatically comment on Pull Requests when architectural drift is detected.
 
@@ -41,10 +43,10 @@ anhcompass init
 ```
 *This will create the `.agent/intent/` directory, a sample intent, a `.env.example` file, and a GitHub workflow template.*
 
-### 3. Add your Anthropic API Key
-For semantic checks to work, AnhCompass needs an Anthropic API key.
+### 3. Add your LLM API Key
+Semantic checks work with **Anthropic, OpenAI, or Gemini** — the provider is auto-detected from the key format (`sk-ant-...` → Anthropic, `sk-...` → OpenAI, otherwise Gemini):
 ```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
+export LLM_API_KEY="sk-..."        # or ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY
 ```
 *(If no key is provided, AnhCompass will safely fallback to deterministic-only mode).*
 
@@ -149,6 +151,55 @@ jobs:
 
 The bot will leave a sticky comment on the PR detailing any architectural drift, pointing out the exact file and lines that violate the intent.
 
+By default the job **fails only on blocking violations** (deterministic evidence + `severity: error`). Control this with the `fail-on` input: `block` (default), `any` (also fail on LLM warn-level findings — not recommended), or `never`.
+
+---
+
+## 🛡️ Enforcement Levels (Hybrid Enforcement)
+
+Every violation carries an enforcement level, resolved by the pipeline:
+
+| Evidence | `severity: error` | `severity: warn` |
+|---|---|---|
+| **Deterministic** (pattern match) | 🚫 `block` | ⚠️ `warn` |
+| **Semantic** (LLM) | ⚠️ `warn` — always | ⚠️ `warn` |
+
+An LLM verdict can never block a merge on its own — semantic checks are probabilistic and act as an early-warning layer, not a gatekeeper. In the CLI:
+
+```bash
+anhcompass check --strict       # exit 1 only on BLOCKING violations (CI-safe)
+anhcompass check --strict-all   # exit 1 on any violation, including LLM warnings (opt-in)
+```
+
+---
+
+## 📈 Baseline & Regression Testing for Intents
+
+When you edit a rule, how do you know it doesn't suddenly flag half your codebase — or silently stop catching things? Snapshot first, then compare:
+
+```bash
+# 1. Take a baseline on a known-good state
+anhcompass check --diff origin/main --save-baseline
+
+# 2. Edit your intents (or code), then compare
+anhcompass check --diff origin/main --compare-baseline
+```
+
+The comparison reports **regressions** (`pass → violation`), **improvements**, new/removed intents, and marks each change with whether the *rule text itself* changed since the baseline (`rule changed`) — so you can tell "my code drifted" apart from "my rule got stricter". With `--strict`, regressions fail the run.
+
+---
+
+## 🧪 Benchmarks
+
+The repo ships a benchmark suite (`benchmarks/`) measuring both engines against labeled cases — correct code, wrong code, edge cases, and realistic AI-generated diffs:
+
+```bash
+pnpm bench                # deterministic cases — free, offline, runs in CI
+pnpm bench -- --semantic  # semantic cases too (needs an LLM API key, costs ~cents)
+```
+
+Reports precision / recall / F1 / accuracy per engine and category, plus latency percentiles and LLM cost. Results land in `benchmarks/results/report.{json,md}`. See [BENCHMARKS.md](BENCHMARKS.md) for the latest numbers.
+
 ---
 
 ## 🛠️ CLI Commands
@@ -158,7 +209,10 @@ The bot will leave a sticky comment on the PR detailing any architectural drift,
 | `anhcompass init` | Scaffold `.agent/intent` directory and templates. |
 | `anhcompass intent new <id>` | Create a new intent markdown file. |
 | `anhcompass compile` | Compile intents into `_index.md` and `manifest.json`. |
-| `anhcompass check` | Scan the current Git diff for intent violations. |
+| `anhcompass check` | Scan the current Git diff (including untracked files) for intent violations. |
+| `anhcompass check --strict` | Exit 1 on blocking violations — safe default for CI. |
+| `anhcompass check --save-baseline` | Snapshot verdicts as the regression baseline. |
+| `anhcompass check --compare-baseline` | Diff current verdicts against the baseline. |
 | `anhcompass doctor` | Verify intent syntax and workspace health. |
 
 ---

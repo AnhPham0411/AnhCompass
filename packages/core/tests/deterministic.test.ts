@@ -107,4 +107,57 @@ describe('runDeterministicCheck', () => {
     const result = await runDeterministicCheck(intent, diff, COMMIT);
     expect(result.verdict.status).toBe('violation');
   });
+
+  describe('Python import syntax', () => {
+    const pyIntent = (to: string[] = ['openai']) =>
+      makeIntent({
+        scope: ['backend/**'],
+        deterministic: { kind: 'no-import', from: ['backend/app/**/*.py'], to },
+      });
+
+    it('detects "from pkg import X"', async () => {
+      const diff = makeDiff('backend/app/services/report.py', ['from openai import OpenAI']);
+      const result = await runDeterministicCheck(pyIntent(), diff, COMMIT);
+      expect(result.verdict.status).toBe('violation');
+    });
+
+    it('detects "import pkg"', async () => {
+      const diff = makeDiff('backend/app/services/report.py', ['import openai']);
+      const result = await runDeterministicCheck(pyIntent(), diff, COMMIT);
+      expect(result.verdict.status).toBe('violation');
+    });
+
+    it('detects "from pkg.submodule import X"', async () => {
+      const diff = makeDiff('backend/app/services/report.py', ['from openai.types import Model']);
+      const result = await runDeterministicCheck(pyIntent(), diff, COMMIT);
+      expect(result.verdict.status).toBe('violation');
+    });
+
+    it('does not flag a different package with the same prefix', async () => {
+      const diff = makeDiff('backend/app/services/report.py', ['import openai_helpers']);
+      const result = await runDeterministicCheck(pyIntent(), diff, COMMIT);
+      expect(result.verdict.status).toBe('pass');
+    });
+
+    it('respects negated "from" globs (allowed module)', async () => {
+      const intent = makeIntent({
+        scope: ['backend/**'],
+        deterministic: {
+          kind: 'no-import',
+          from: ['backend/app/**/*.py', '!backend/app/services/nlp.py'],
+          to: ['openai'],
+        },
+      });
+      const diff = makeDiff('backend/app/services/nlp.py', ['from openai import OpenAI']);
+      const result = await runDeterministicCheck(intent, diff, COMMIT);
+      expect(result.verdict.status).toBe('pass');
+    });
+  });
+
+  it('detects JS subpath imports (pkg/submodule)', async () => {
+    const intent = makeIntent();
+    const diff = makeDiff('src/api/order.ts', ["import { Webhook } from 'stripe/webhooks';"]);
+    const result = await runDeterministicCheck(intent, diff, COMMIT);
+    expect(result.verdict.status).toBe('violation');
+  });
 });

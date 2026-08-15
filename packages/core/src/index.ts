@@ -7,12 +7,14 @@ export type {
   IntentAnchor,
   DeterministicRule,
   Verdict,
+  Enforcement,
 } from './intent/schema.js';
 export {
   IntentFrontmatterSchema,
   IntentAnchorSchema,
   DeterministicRuleSchema,
   VerdictSchema,
+  EnforcementSchema,
 } from './intent/schema.js';
 
 // Compile
@@ -27,10 +29,27 @@ export { parseDiff, getGitDiff, getWorkingTreeDiff, getCurrentCommit } from './d
 export { filterByScope } from './engine/scope.js';
 export { getCachedVerdict, setCachedVerdict, buildCacheKey } from './engine/cache.js';
 export { runDeterministicCheck } from './engine/deterministic.js';
-export { runSemanticCheck } from './engine/semantic.js';
+export { runSemanticCheck, SemanticVerdictResponseSchema } from './engine/semantic.js';
 export { runPipeline } from './engine/pipeline.js';
 export type { PipelineOpts, PipelineResult } from './engine/pipeline.js';
+export {
+  resolveEnforcement,
+  withEnforcement,
+  blockingViolations,
+  warningViolations,
+} from './engine/enforcement.js';
+
+// Baseline
+export {
+  buildBaseline,
+  saveBaseline,
+  loadBaseline,
+  compareBaseline,
+  hashIntentContent,
+  BaselineSchema,
+} from './baseline/baseline.js';
+export type { Baseline, BaselineDiff, BaselineEntryDiff } from './baseline/baseline.js';
 
 // Report
-export { renderTerminal } from './report/terminal.js';
+export { renderTerminal, renderBaselineDiff } from './report/terminal.js';
 export { renderMarkdown } from './report/markdown.js';

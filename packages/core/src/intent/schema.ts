@@ -46,6 +46,12 @@ export interface Intent {
   filePath: string;
 }
 
+/** How a violation should be enforced in CI.
+ *  `block` — fail the pipeline. Only deterministic evidence can block.
+ *  `warn`  — surface but never fail. All LLM (semantic) verdicts are warn-only. */
+export const EnforcementSchema = z.enum(['block', 'warn']);
+export type Enforcement = z.infer<typeof EnforcementSchema>;
+
 export const VerdictSchema = z.object({
   intentId: z.string(),
   status: z.enum(['pass', 'violation', 'uncertain', 'stale-intent']),
@@ -61,6 +67,8 @@ export const VerdictSchema = z.object({
   suggestion: z.string().optional(),
   checkedAtCommit: z.string(),
   engine: z.enum(['deterministic', 'semantic']),
+  /** Set on violations only. Resolved by the pipeline — see resolveEnforcement. */
+  enforcement: EnforcementSchema.optional(),
 });
 
 export type Verdict = z.infer<typeof VerdictSchema>;

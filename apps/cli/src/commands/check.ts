@@ -8,8 +8,26 @@ import {
   getCurrentCommit,
   runPipeline,
   renderTerminal,
+  renderBaselineDiff,
+  blockingViolations,
+  buildBaseline,
+  saveBaseline,
+  loadBaseline,
+  compareBaseline,
 } from '@anhcompass/core';
+import { resolveLlmApiKey, LLM_API_KEY_ENV_VARS } from '@anhcompass/llm';
 import pc from 'picocolors';
+
+interface CheckOpts {
+  diff?: string;
+  intentDir: string;
+  repoRoot: string;
+  strict?: boolean;
+  strictAll?: boolean;
+  saveBaseline?: boolean;
+  compareBaseline?: boolean;
+  baselinePath: string;
+}
 
 export function registerCheck(program: Command): void {
   program
@@ -18,10 +36,15 @@ export function registerCheck(program: Command): void {
     .option('--diff <ref>', 'Git ref to diff against (e.g. origin/main)')
     .option('--intent-dir <dir>', 'Path to intent directory', '.agent/intent')
     .option('--repo-root <dir>', 'Repo root', '.')
-    .option('--strict', 'Exit 1 on any violation (default: always exit 0 in v1)')
-    .action(async (opts: { diff?: string; intentDir: string; repoRoot: string; strict?: boolean }) => {
+    .option('--strict', 'Exit 1 on BLOCKING violations (deterministic + severity error)')
+    .option('--strict-all', 'Exit 1 on any violation, including LLM warn-level (not recommended for CI)')
+    .option('--save-baseline', 'Save verdicts as the regression baseline after this run')
+    .option('--compare-baseline', 'Compare verdicts against the saved baseline and report changes')
+    .option('--baseline-path <file>', 'Baseline file location', '.agent/baseline.json')
+    .action(async (opts: CheckOpts) => {
       const repoRoot = resolve(opts.repoRoot);
       const intentDir = resolve(opts.intentDir);
+      const baselinePath = resolve(opts.baselinePath);
 
       console.log(pc.cyan('anhcompass check'));
 
@@ -56,10 +79,14 @@ export function registerCheck(program: Command): void {
 
       const parsedDiff = parseDiff(diffText);
       const checkedAtCommit = await getCurrentCommit(repoRoot);
-      const apiKey = process.env['ANTHROPIC_API_KEY'];
+      const apiKey = resolveLlmApiKey(process.env);
 
       if (!apiKey) {
-        console.log(pc.yellow('  ANTHROPIC_API_KEY not set — semantic checks will be skipped'));
+        console.log(
+          pc.yellow(
+            `  No LLM API key found (checked ${LLM_API_KEY_ENV_VARS.join(', ')}) — semantic checks will be skipped`,
+          ),
+        );
       }
 
       console.log(`  Files in diff: ${parsedDiff.files.length}`);
@@ -82,9 +109,40 @@ export function registerCheck(program: Command): void {
         console.log(pc.dim(`  (${result.cacheHits} cache hit(s))`));
       }
 
-      const hasViolation = result.verdicts.some((v) => v.status === 'violation');
-      if (opts.strict && hasViolation) {
-        process.exit(1);
+      let regressionCount = 0;
+      if (opts.compareBaseline) {
+        const baseline = await loadBaseline(baselinePath);
+        console.log('');
+        if (!baseline) {
+          console.log(
+            pc.yellow(`  No baseline at ${opts.baselinePath} — run with --save-baseline first`),
+          );
+        } else {
+          const diff = compareBaseline(baseline, intents, result.verdicts);
+          console.log(renderBaselineDiff(diff));
+          regressionCount = diff.regressions.length;
+        }
       }
+
+      if (opts.saveBaseline) {
+        const baseline = buildBaseline(
+          intents,
+          result.verdicts,
+          checkedAtCommit,
+          new Date().toISOString(),
+        );
+        await saveBaseline(baselinePath, baseline);
+        console.log('');
+        console.log(pc.dim(`  Baseline saved to ${opts.baselinePath}`));
+      }
+
+      // Hybrid enforcement: only deterministic violations with severity `error`
+      // can fail the pipeline. LLM verdicts alone never block (use --strict-all
+      // to opt out of that protection).
+      const blocking = blockingViolations(result.verdicts);
+      const anyViolation = result.verdicts.some((v) => v.status === 'violation');
+
+      if (opts.strictAll && anyViolation) process.exit(1);
+      if (opts.strict && (blocking.length > 0 || regressionCount > 0)) process.exit(1);
     });
 }

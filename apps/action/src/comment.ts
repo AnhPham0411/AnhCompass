@@ -7,7 +7,10 @@ import {
   getCurrentCommit,
   runPipeline,
   renderMarkdown,
+  blockingViolations,
+  warningViolations,
 } from '@anhcompass/core';
+import { resolveLlmApiKey } from '@anhcompass/llm';
 import { resolve } from 'node:path';
 
 const MARKER = '<!-- anhcompass-drift-report -->';
@@ -48,7 +51,7 @@ async function upsertPRComment(
 async function main(): Promise<void> {
   const intentDir = resolve(core.getInput('intent-dir') || '.agent/intent');
   const diffRef = core.getInput('diff-ref') || 'origin/main';
-  const apiKey = process.env['ANTHROPIC_API_KEY'];
+  const apiKey = resolveLlmApiKey(process.env);
   const repoRoot = process.cwd();
 
   const { intents, errors } = await parseIntentDir(intentDir);
@@ -77,8 +80,13 @@ async function main(): Promise<void> {
   });
 
   const report = renderMarkdown(result.verdicts, commit);
+  const blocking = blockingViolations(result.verdicts);
+  const warnings = warningViolations(result.verdicts);
+
   core.setOutput('report', report);
-  core.setOutput('violations', String(result.verdicts.filter((v) => v.status === 'violation').length));
+  core.setOutput('violations', String(blocking.length + warnings.length));
+  core.setOutput('blocking-violations', String(blocking.length));
+  core.setOutput('warnings', String(warnings.length));
 
   // Post PR comment if in PR context
   const context = github.context;
@@ -92,6 +100,15 @@ async function main(): Promise<void> {
   }
 
   core.info(report);
+
+  // Hybrid enforcement: `block` (default) fails only on deterministic
+  // violations with severity error — LLM verdicts alone never fail the job.
+  const failOn = core.getInput('fail-on') || 'block';
+  if (failOn === 'block' && blocking.length > 0) {
+    core.setFailed(`${blocking.length} blocking violation(s) — deterministic evidence`);
+  } else if (failOn === 'any' && blocking.length + warnings.length > 0) {
+    core.setFailed(`${blocking.length + warnings.length} violation(s) (fail-on: any)`);
+  }
 }
 
 main().catch((err: unknown) => {

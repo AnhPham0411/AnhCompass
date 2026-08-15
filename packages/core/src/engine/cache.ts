@@ -1,8 +1,9 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
-import type { Verdict } from '../intent/schema.js';
+import { VerdictSchema, type Verdict } from '../intent/schema.js';
 
-/** Read cached verdict. Returns null on miss. */
+/** Read cached verdict. Returns null on miss or on a corrupt/stale entry. */
 export async function getCachedVerdict(
   cacheDir: string,
   cacheKey: string,
@@ -10,7 +11,8 @@ export async function getCachedVerdict(
   const path = join(cacheDir, `${cacheKey}.json`);
   try {
     const raw = await readFile(path, 'utf-8');
-    return JSON.parse(raw) as Verdict;
+    const parsed = VerdictSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : null;
   } catch {
     return null;
   }
@@ -30,18 +32,13 @@ export async function setCachedVerdict(
   }
 }
 
-/** Build cache key from intent content + relevant diff hunks */
+/** Build cache key from intent content + relevant diff hunks.
+ *  sha256 — a 32-bit hash collision would silently serve another intent's verdict. */
 export function buildCacheKey(
   intentContent: string,
   diffHunks: string[],
   modelId: string,
 ): string {
   const input = intentContent + '|||' + diffHunks.join('\n') + '|||' + modelId;
-  // Simple djb2 hash
-  let hash = 5381;
-  for (let i = 0; i < input.length; i++) {
-    hash = ((hash << 5) + hash) ^ input.charCodeAt(i);
-    hash = hash >>> 0;
-  }
-  return hash.toString(16).padStart(8, '0');
+  return createHash('sha256').update(input).digest('hex').slice(0, 16);
 }

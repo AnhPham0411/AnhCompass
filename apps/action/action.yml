@@ -15,10 +15,10 @@ inputs:
     description: "Git ref to diff against"
     required: false
     default: "origin/main"
-  mode:
-    description: "warn or strict"
+  fail-on:
+    description: "When to fail the job: block (deterministic violations only — default), any (all violations, including LLM warn-level), never"
     required: false
-    default: "warn"
+    default: "block"
   github-token:
     description: "GitHub token for PR comments"
     required: false
@@ -26,8 +26,14 @@ inputs:
 
 outputs:
   violations:
-    description: "Number of violations found"
+    description: "Total number of violations found"
     value: ${{ steps.check.outputs.violations }}
+  blocking-violations:
+    description: "Violations with deterministic evidence (enforcement: block)"
+    value: ${{ steps.check.outputs.blocking-violations }}
+  warnings:
+    description: "Warn-level violations (LLM semantic or severity warn)"
+    value: ${{ steps.check.outputs.warnings }}
   report:
     description: "Markdown report"
     value: ${{ steps.check.outputs.report }}
@@ -40,21 +46,15 @@ runs:
       with:
         node-version: "20"
 
-    - name: Install anhcompass
-      shell: bash
-      run: npx --yes anhcompass@latest --version || true
-
     - name: Run drift check
       id: check
       shell: bash
       env:
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
-      run: |
-        REPORT=$(node ${{ github.action_path }}/dist/comment.js \
-          --intent-dir "${{ inputs.intent-dir }}" \
-          --diff-ref "${{ inputs.diff-ref }}" \
-          --mode "${{ inputs.mode }}" 2>&1) || true
-        echo "report<<EOF" >> $GITHUB_OUTPUT
-        echo "$REPORT" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        # composite actions do not auto-expose inputs — map them explicitly
+        # to the INPUT_* names @actions/core getInput() reads
+        INPUT_INTENT-DIR: ${{ inputs.intent-dir }}
+        INPUT_DIFF-REF: ${{ inputs.diff-ref }}
+        INPUT_FAIL-ON: ${{ inputs.fail-on }}
+      run: node ${{ github.action_path }}/dist/comment.js

@@ -11,6 +11,42 @@ export class LlmCallError extends Error {
   }
 }
 
+const OpenAiResponseSchema = z.object({
+  choices: z
+    .array(
+      z.object({
+        message: z.object({ content: z.string().nullable().optional() }),
+      }),
+    )
+    .min(1),
+  usage: z
+    .object({
+      prompt_tokens: z.number().optional(),
+      completion_tokens: z.number().optional(),
+    })
+    .optional(),
+});
+
+const GeminiResponseSchema = z.object({
+  candidates: z
+    .array(
+      z.object({
+        content: z
+          .object({
+            parts: z.array(z.object({ text: z.string().optional() })).optional(),
+          })
+          .optional(),
+      }),
+    )
+    .min(1),
+  usageMetadata: z
+    .object({
+      promptTokenCount: z.number().optional(),
+      candidatesTokenCount: z.number().optional(),
+    })
+    .optional(),
+});
+
 export class LlmClient {
   private readonly anthropicClient?: Anthropic;
   private readonly apiKey: string;
@@ -23,7 +59,7 @@ export class LlmClient {
     if (this.apiKey.startsWith('sk-ant-')) {
       this.provider = 'anthropic';
       this.anthropicClient = new Anthropic({ apiKey: this.apiKey });
-      this.defaultModel = opts.model ?? 'claude-3-haiku-20240307';
+      this.defaultModel = opts.model ?? 'claude-haiku-4-5';
     } else if (this.apiKey.startsWith('sk-')) {
       this.provider = 'openai';
       this.defaultModel = opts.model ?? 'gpt-4o-mini';
@@ -37,7 +73,7 @@ export class LlmClient {
     intentId: string;
     systemPrompt: string;
     userPrompt: string;
-    schema: z.ZodType<T>;
+    schema: z.ZodType<T, z.ZodTypeDef, unknown>;
     maxTokens?: number;
     model?: string; // May be passed from budget routing (e.g., 'claude-haiku-4-5')
   }): Promise<{ result: T; usage: { inputTokens: number; outputTokens: number }; model: string }> {
@@ -97,11 +133,14 @@ export class LlmClient {
           throw new Error(`OpenAI API error: ${response.status} ${await response.text()}`);
         }
 
-        const data = await response.json() as any;
-        rawText = data.choices[0]?.message?.content || '';
+        const parsed = OpenAiResponseSchema.safeParse(await response.json());
+        if (!parsed.success) {
+          throw new Error(`OpenAI response shape invalid: ${parsed.error.message}`);
+        }
+        rawText = parsed.data.choices[0]?.message.content ?? '';
         usage = {
-          inputTokens: data.usage?.prompt_tokens || 0,
-          outputTokens: data.usage?.completion_tokens || 0,
+          inputTokens: parsed.data.usage?.prompt_tokens ?? 0,
+          outputTokens: parsed.data.usage?.completion_tokens ?? 0,
         };
       } else {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
@@ -123,11 +162,14 @@ export class LlmClient {
           throw new Error(`Gemini API error: ${response.status} ${await response.text()}`);
         }
 
-        const data = await response.json() as any;
-        rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const parsed = GeminiResponseSchema.safeParse(await response.json());
+        if (!parsed.success) {
+          throw new Error(`Gemini response shape invalid: ${parsed.error.message}`);
+        }
+        rawText = parsed.data.candidates[0]?.content?.parts?.[0]?.text ?? '';
         usage = {
-          inputTokens: data.usageMetadata?.promptTokenCount || 0,
-          outputTokens: data.usageMetadata?.candidatesTokenCount || 0,
+          inputTokens: parsed.data.usageMetadata?.promptTokenCount ?? 0,
+          outputTokens: parsed.data.usageMetadata?.candidatesTokenCount ?? 0,
         };
       }
     } catch (err) {

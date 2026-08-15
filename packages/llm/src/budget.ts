@@ -15,5 +15,6 @@ export function routeModel(estimatedInputTokens: number): string {
   return SONNET_MODEL;
 }
 
-/** Max output tokens for verdict response (small — JSON only) */
-export const VERDICT_MAX_OUTPUT_TOKENS = 512;
+/** Max output tokens for verdict response. JSON-only, but multiple evidence
+ *  items can exceed 512 and a truncated response fails to parse. */
+export const VERDICT_MAX_OUTPUT_TOKENS = 1024;

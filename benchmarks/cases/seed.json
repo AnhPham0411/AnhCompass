@@ -1,0 +1,44 @@
+[
+  {
+    "id": "seed-det-wrong-001",
+    "category": "wrong",
+    "engine": "deterministic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": ["src/**"],
+      "check": "deterministic",
+      "rule": "Do not import lodash directly.",
+      "deterministic": { "kind": "no-import", "from": ["src/**"], "to": ["lodash"] },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-13"
+    },
+    "intentBody": "Lodash bloats the bundle.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,2 +1,3 @@\n+import _ from 'lodash';\n export const x = 1;\n",
+    "notes": "Plain added lodash import in scope — must be caught"
+  },
+  {
+    "id": "seed-det-correct-001",
+    "category": "correct",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": ["src/**"],
+      "check": "deterministic",
+      "rule": "Do not import lodash directly.",
+      "deterministic": { "kind": "no-import", "from": ["src/**"], "to": ["lodash"] },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-13"
+    },
+    "intentBody": "Lodash bloats the bundle.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,2 +1,3 @@\n+export function chunk<T>(arr: T[], n: number): T[][] { return []; }\n export const x = 1;\n",
+    "notes": "Clean code, no forbidden import — must pass"
+  }
+]

@@ -15,6 +15,7 @@
   "dependencies": {
     "@anhcompass/core": "workspace:*",
     "@anhcompass/graph": "workspace:*",
+    "@anhcompass/llm": "workspace:*",
     "commander": "^12.1.0",
     "picocolors": "^1.1.1"
   },

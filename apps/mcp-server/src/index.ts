@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
-} from '@modelcontextprotocol/sdk/common/mcp.js';
+} from '@modelcontextprotocol/sdk/types.js';
 import { resolve } from 'node:path';
 import {
   parseIntentDir,
@@ -13,6 +13,7 @@ import {
   runPipeline,
   renderTerminal,
 } from '@anhcompass/core';
+import { resolveLlmApiKey } from '@anhcompass/llm';
 
 const server = new Server(
   {
@@ -114,7 +115,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const parsedDiff = parseDiff(diffText);
       const commit = await getCurrentCommit(repoRoot);
-      const apiKey = process.env['ANTHROPIC_API_KEY'];
+      const apiKey = resolveLlmApiKey(process.env);
 
       const result = await runPipeline({
         intents,

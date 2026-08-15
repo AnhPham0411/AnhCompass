@@ -36,9 +36,7 @@ export async function runDeterministicCheck(
     const addedLines = hunks.filter((l) => l.startsWith('+'));
 
     for (const forbidden of rule.to) {
-      const importPattern = new RegExp(
-        `(?:import|require)\\s*(?:[^'"]*from\\s*)?['"]${escapeRegex(forbidden)}['"]`,
-      );
+      const importPattern = buildImportPattern(forbidden);
 
       for (let i = 0; i < addedLines.length; i++) {
         const line = addedLines[i]!;
@@ -98,6 +96,17 @@ export async function runDeterministicCheck(
       engine: 'deterministic',
     },
   };
+}
+
+/** Match an import of `forbidden` in JS/TS or Python syntax.
+ *  Lines carry the leading '+' diff marker. */
+function buildImportPattern(forbidden: string): RegExp {
+  const esc = escapeRegex(forbidden);
+  // JS/TS: import x from 'pkg' | import 'pkg' | require('pkg') | import('pkg/sub')
+  const js = `(?:import|require)\\s*\\(?\\s*(?:[^'"]*from\\s*)?['"]${esc}(?:\\/[^'"]*)?['"]`;
+  // Python: import pkg [as x] | from pkg[.sub] import y
+  const py = `^\\+\\s*(?:import\\s+${esc}\\b|from\\s+${esc}(?:\\.[\\w.]+)?\\s+import\\b)`;
+  return new RegExp(`${js}|${py}`);
 }
 
 function escapeRegex(s: string): string {
