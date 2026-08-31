@@ -13,15 +13,22 @@ export interface LlmLogEntry {
   engine: 'semantic';
 }
 
+/** Serializes appends: concurrent checks would otherwise interleave writes and
+ *  drop entries, under-reporting token spend. */
+let writeQueue: Promise<void> = Promise.resolve();
+
 /** Append a log entry to .agent/cache/llm-log.jsonl */
 export async function logLlmCall(repoRoot: string, entry: LlmLogEntry): Promise<void> {
   const logPath = join(repoRoot, '.agent', 'cache', 'llm-log.jsonl');
-  try {
-    await mkdir(dirname(logPath), { recursive: true });
-    await appendFile(logPath, JSON.stringify(entry) + '\n', 'utf-8');
-  } catch {
-    // Non-fatal — logging must not break the pipeline
-  }
+  writeQueue = writeQueue.then(async () => {
+    try {
+      await mkdir(dirname(logPath), { recursive: true });
+      await appendFile(logPath, JSON.stringify(entry) + '\n', 'utf-8');
+    } catch {
+      // Non-fatal — logging must not break the pipeline
+    }
+  });
+  return writeQueue;
 }
 
 /** Simple deterministic hash for cache keys */

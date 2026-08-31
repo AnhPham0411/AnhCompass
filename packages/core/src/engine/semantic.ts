@@ -1,10 +1,15 @@
 import type { Intent, Verdict } from '../intent/schema.js';
 import type { ParsedDiff, GraphProvider } from '@anhcompass/graph';
-import { readFilesMatchingGlobs } from '@anhcompass/graph';
+import { readFilesMatchingGlobs, readFilesInOrder } from '@anhcompass/graph';
 import micromatch from 'micromatch';
+
+/** Token budget for retrieved code context. Both retrieval strategies spend
+ *  the same budget, so a comparison between them measures the choice of files
+ *  rather than the size of the prompt. */
+export const CONTEXT_TOKEN_BUDGET = 6000;
 import {
   LlmClient,
-  CONFORMANCE_SYSTEM_PROMPT_V1,
+  CONFORMANCE_SYSTEM_PROMPT_V2,
   buildSemanticPrompt,
   routeModel,
   VERDICT_MAX_OUTPUT_TOKENS,
@@ -49,6 +54,8 @@ export interface SemanticCheckOpts {
   cacheKey: string;
   provider?: GraphProvider;
   useGraphRetrieval?: boolean;
+  /** Pin the model instead of routing by context size */
+  model?: string;
 }
 
 export async function runSemanticCheck(opts: SemanticCheckOpts): Promise<Verdict> {
@@ -65,13 +72,32 @@ export async function runSemanticCheck(opts: SemanticCheckOpts): Promise<Verdict
     
     // Prioritize neighbors that match intent scope
     const scopeNeighbors = micromatch(neighbors, intent.frontmatter.scope);
-    const otherNeighbors = neighbors.filter(n => !scopeNeighbors.includes(n));
-    const rankedFiles = [...scopeNeighbors, ...otherNeighbors];
+    const otherNeighbors = neighbors.filter((n) => !scopeNeighbors.includes(n));
+    // changed files first — they are the reason the check is running at all —
+    // then their in-scope neighbours, then the rest
+    const rankedFiles = [
+      ...changedFiles,
+      ...scopeNeighbors.filter((n) => !changedFiles.includes(n)),
+      ...otherNeighbors,
+    ];
 
-    context = await readFilesMatchingGlobs(repoRoot, rankedFiles, 6000);
+    // read in rank order: a budget spent in directory order discards the rank
+    context = await readFilesInOrder(repoRoot, rankedFiles, CONTEXT_TOKEN_BUDGET);
+
+    // The index covers TypeScript and JavaScript only. In a repository written
+    // in anything else the neighbourhood comes back empty, and an empty context
+    // is strictly worse than the walk it replaced — fall back rather than ask
+    // the model to judge a rule with nothing to read.
+    if (Object.keys(context.snippets).length === 0) {
+      context = await readFilesMatchingGlobs(
+        repoRoot,
+        intent.frontmatter.scope,
+        CONTEXT_TOKEN_BUDGET,
+      );
+    }
   } else {
     // Gather context from files matching intent scope
-    context = await readFilesMatchingGlobs(repoRoot, intent.frontmatter.scope, 6000);
+    context = await readFilesMatchingGlobs(repoRoot, intent.frontmatter.scope, CONTEXT_TOKEN_BUDGET);
   }
 
   // Also include files in the diff
@@ -88,7 +114,7 @@ export async function runSemanticCheck(opts: SemanticCheckOpts): Promise<Verdict
     Math.min(context.estimatedTokens, CONTEXT_PROMPT_CHAR_LIMIT / 4) +
     Math.min(diffText.length, DIFF_PROMPT_CHAR_LIMIT) / 4;
 
-  const model = routeModel(Math.ceil(estimatedTokens));
+  const model = opts.model ?? routeModel(Math.ceil(estimatedTokens));
   const client = new LlmClient({ apiKey, model });
 
   const userPrompt = buildSemanticPrompt({
@@ -105,7 +131,7 @@ export async function runSemanticCheck(opts: SemanticCheckOpts): Promise<Verdict
   try {
     callResult = await client.callWithSchema({
       intentId: intent.frontmatter.id,
-      systemPrompt: CONFORMANCE_SYSTEM_PROMPT_V1,
+      systemPrompt: CONFORMANCE_SYSTEM_PROMPT_V2,
       userPrompt,
       schema: SemanticVerdictResponseSchema,
       maxTokens: VERDICT_MAX_OUTPUT_TOKENS,
