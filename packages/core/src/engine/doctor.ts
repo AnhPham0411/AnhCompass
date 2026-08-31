@@ -1,5 +1,4 @@
 import { Intent } from '../intent/schema.js';
-import micromatch from 'micromatch';
 
 export interface DoctorIssue {
   intentId: string;

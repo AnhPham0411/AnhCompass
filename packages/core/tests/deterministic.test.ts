@@ -154,6 +154,51 @@ describe('runDeterministicCheck', () => {
     });
   });
 
+  describe('engine composition', () => {
+    /** A graph backend that indexes nothing — what TsGraphProvider effectively
+     *  is for a Python file, or for any package no indexed file imports. */
+    const emptyGraphProvider = {
+      name: 'ts-graph',
+      available: async () => true,
+      affectedSymbols: async () => [],
+      resolveAnchor: async () => ({ found: true }),
+      contextFor: async () => ({ estimatedTokens: 0, snippets: {} }),
+      getQueryEngine: async () => ({
+        data: { nodes: [] as string[] },
+        paths: () => [],
+        cycles: () => [],
+      }),
+    };
+
+    it('still reports a lexical violation when a graph provider is attached', async () => {
+      const intent = makeIntent();
+      const diff = makeDiff('src/api/order.ts', ["import Stripe from 'stripe';"]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await runDeterministicCheck(intent, diff, COMMIT, emptyGraphProvider as any, '/tmp/x');
+      expect(result.verdict.status).toBe('violation');
+    });
+
+    it('honors a suppression comment when a graph provider is attached', async () => {
+      const intent = makeIntent();
+      const diff = makeDiff('src/api/order.ts', [
+        "import Stripe from 'stripe'; // anhcompass-disable-line test-rule",
+      ]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await runDeterministicCheck(intent, diff, COMMIT, emptyGraphProvider as any, '/tmp/x');
+      expect(result.verdict.status).toBe('pass');
+    });
+
+    it('returns uncertain — not pass — for a rule no available engine can evaluate', async () => {
+      const intent = makeIntent({
+        deterministic: { kind: 'no-cycle', from: ['src/**'] },
+      });
+      const diff = makeDiff('src/api/order.ts', ['export const a = 1;']);
+      const result = await runDeterministicCheck(intent, diff, COMMIT);
+      expect(result.verdict.status).toBe('uncertain');
+      expect(result.verdict.suggestion).toMatch(/graph engine/i);
+    });
+  });
+
   it('detects JS subpath imports (pkg/submodule)', async () => {
     const intent = makeIntent();
     const diff = makeDiff('src/api/order.ts', ["import { Webhook } from 'stripe/webhooks';"]);

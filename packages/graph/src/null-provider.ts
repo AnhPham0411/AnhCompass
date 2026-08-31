@@ -64,6 +64,46 @@ const CODE_EXTENSIONS = new Set([
   '.rs', '.php', '.rb', '.cs', '.sh', '.md'
 ]);
 
+/** Read specific files in the order given, until the budget runs out.
+ *
+ *  The glob walk below picks files in directory order, so a caller that has
+ *  ranked its candidates cannot express that ranking through it — the rank is
+ *  computed and then discarded. Retrieval that has decided what matters most
+ *  needs to spend the budget in that order. */
+export async function readFilesInOrder(
+  repoRoot: string,
+  relPaths: string[],
+  budgetTokens: number,
+  maxFiles = 15,
+): Promise<CodeContext> {
+  const snippets: Record<string, string> = {};
+  let usedTokens = 0;
+  const tokensPerChar = 0.25;
+
+  for (const rel of relPaths) {
+    if (usedTokens >= budgetTokens || Object.keys(snippets).length >= maxFiles) break;
+
+    const extIndex = rel.lastIndexOf('.');
+    const ext = extIndex !== -1 ? rel.slice(extIndex).toLowerCase() : '';
+    // graph nodes include bare package specifiers, which are not files
+    if (!CODE_EXTENSIONS.has(ext)) continue;
+
+    let content: string;
+    try {
+      content = await readFile(join(repoRoot, rel), 'utf-8');
+    } catch {
+      continue;
+    }
+
+    const maxChars = Math.floor((budgetTokens - usedTokens) / tokensPerChar);
+    const snippet = content.slice(0, maxChars);
+    snippets[rel] = snippet;
+    usedTokens += Math.ceil(snippet.length * tokensPerChar);
+  }
+
+  return { estimatedTokens: usedTokens, snippets };
+}
+
 /** Read source files matching glob patterns for context */
 export async function readFilesMatchingGlobs(
   repoRoot: string,

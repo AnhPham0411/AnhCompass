@@ -50,7 +50,12 @@ export {
 } from './baseline/baseline.js';
 export type { Baseline, BaselineDiff, BaselineEntryDiff } from './baseline/baseline.js';
 
+// Plan review
+export { checkPlan, renderPlanReview, PlanFindingSchema, PlanReviewResponseSchema } from './engine/plan.js';
+export type { PlanFinding, PlanCheckOpts, PlanCheckResult } from './engine/plan.js';
+
 // Report
 export { renderTerminal, renderBaselineDiff } from './report/terminal.js';
 export { renderMarkdown } from './report/markdown.js';
+export { renderPlain, renderExplanation } from './report/plain.js';
 export { runDoctor, DoctorIssue } from './engine/doctor.js';

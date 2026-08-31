@@ -32,6 +32,14 @@ export async function setCachedVerdict(
   }
 }
 
+/** Bumped whenever an engine changes what it would conclude from the same
+ *  input. A cached verdict is an answer from a particular version of the
+ *  checker; serving it after the checker changed is serving a stale answer
+ *  with full confidence.
+ *
+ *  2 — layer-boundary began following paths through unlayered modules. */
+export const ENGINE_VERSION = 2;
+
 /** Build cache key from intent content + relevant diff hunks.
  *  sha256 — a 32-bit hash collision would silently serve another intent's verdict. */
 export function buildCacheKey(
@@ -39,6 +47,8 @@ export function buildCacheKey(
   diffHunks: string[],
   modelId: string,
 ): string {
-  const input = intentContent + '|||' + diffHunks.join('\n') + '|||' + modelId;
+  const input = [`engine:${ENGINE_VERSION}`, intentContent, diffHunks.join('\n'), modelId].join(
+    '|||',
+  );
   return createHash('sha256').update(input).digest('hex').slice(0, 16);
 }

@@ -32,7 +32,7 @@ export class Indexer {
           this.memoryCache.set(k, v as any);
         }
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
@@ -44,7 +44,7 @@ export class Indexer {
       }
       const data = Object.fromEntries(this.memoryCache.entries());
       fs.writeFileSync(path.join(this.cacheDir, 'graph.json'), JSON.stringify(data, null, 2));
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
@@ -146,7 +146,7 @@ export class Indexer {
             this.tsconfigPaths = tsconfig.compilerOptions.paths;
           }
         }
-      } catch (e) {}
+      } catch {}
     }
     
     // try to apply tsconfig paths
@@ -165,7 +165,7 @@ export class Indexer {
                   if (fs.existsSync(withExt) && fs.statSync(withExt).isFile()) {
                     return path.relative(this.repoRoot, withExt).replace(/\\/g, "/");
                   }
-                } catch (e) {}
+                } catch {}
               }
             }
           }
@@ -188,7 +188,7 @@ export class Indexer {
         if (fs.existsSync(withExt) && fs.statSync(withExt).isFile()) {
           return path.relative(this.repoRoot, withExt).replace(/\\/g, '/');
         }
-      } catch (e) {
+      } catch {
         // ignore
       }
     }

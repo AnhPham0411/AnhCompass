@@ -1,12 +1,13 @@
 import micromatch from 'micromatch';
 import type { Intent, Verdict } from '../intent/schema.js';
-import type { ParsedDiff, GraphProvider } from '@anhcompass/graph';
+import type { ParsedDiff } from '@anhcompass/graph';
 import { detectProvider } from '@anhcompass/graph';
 import { filterByScope } from './scope.js';
 import { getCachedVerdict, setCachedVerdict, buildCacheKey } from './cache.js';
 import { runDeterministicCheck } from './deterministic.js';
 import { runSemanticCheck } from './semantic.js';
 import { withEnforcement } from './enforcement.js';
+import { defaultSemanticModel, CONFORMANCE_PROMPT_VERSION } from '@anhcompass/llm';
 import { join } from 'node:path';
 
 export interface PipelineOpts {
@@ -16,6 +17,12 @@ export interface PipelineOpts {
   repoRoot: string;
   checkedAtCommit: string;
   apiKey?: string;
+  /** Pin the semantic model instead of using the default routing */
+  model?: string;
+  /** Retrieve semantic context through the import graph rather than a
+   *  directory walk. Defaults to on; falls back automatically when the
+   *  repository has no graph backend. */
+  useGraphRetrieval?: boolean;
   onProgress?: (msg: string) => void;
 }
 
@@ -53,7 +60,12 @@ export async function runPipeline(opts: PipelineOpts): Promise<PipelineResult> {
     const scopedFiles = micromatch(diff.files, intent.frontmatter.scope);
     const relevantHunks = scopedFiles.flatMap((file) => diff.hunks[file] ?? []);
 
-    const modelId = apiKey ? 'semantic' : 'deterministic-only';
+    // The model and the prompt both change what a semantic verdict says, so
+    // both belong in the key. Without them, pinning a different model returns
+    // the previous model's answer from cache.
+    const modelId = apiKey
+      ? `semantic:${opts.model ?? defaultSemanticModel()}:${CONFORMANCE_PROMPT_VERSION}`
+      : 'deterministic-only';
     const cacheKey = buildCacheKey(intentContent, relevantHunks, modelId);
     const cached = await getCachedVerdict(cacheDir, cacheKey);
 
@@ -90,7 +102,11 @@ export async function runPipeline(opts: PipelineOpts): Promise<PipelineResult> {
         checkedAtCommit,
         cacheKey,
         provider,
-        useGraphRetrieval: process.env.ANHCOMPASS_GRAPH_RETRIEVAL === '1',
+        model: opts.model,
+        // Measured: graph-neighbourhood retrieval finds a violation the
+        // directory walk misses, on fewer tokens (BENCHMARKS.md). It degrades
+        // to the walk on its own when no graph backend is available.
+        useGraphRetrieval: opts.useGraphRetrieval ?? true,
       });
     } else if (!apiKey && (check === 'semantic' || check === 'both')) {
       verdict = {

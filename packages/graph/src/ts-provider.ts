@@ -1,10 +1,9 @@
-import { join, relative, resolve } from 'node:path';
+import { join, relative } from 'node:path';
 import { stat, readdir } from 'node:fs/promises';
 import { Indexer } from './index/indexer.js';
 import { QueryEngine } from './query/query.js';
 import type { GraphProvider, ParsedDiff, SymbolRef, AnchorResolution, CodeContext } from './provider.js';
 import { NullProvider } from './null-provider.js';
-import micromatch from 'micromatch';
 
 export class TsGraphProvider implements GraphProvider {
   readonly name = 'ts-graph';
