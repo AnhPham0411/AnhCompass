@@ -11,10 +11,16 @@ import {
   getWorkingTreeDiff,
   getCurrentCommit,
   runPipeline,
-  renderTerminal,
+  runDeterministicCheck,
+  withEnforcement,
+  checkPlan,
+  renderPlanReview,
+  renderPlain,
+  renderExplanation,
 } from '@anhcompass/core';
 import { detectProvider } from '@anhcompass/graph';
 import { resolveLlmApiKey } from '@anhcompass/llm';
+import micromatch from 'micromatch';
 
 const server = new Server(
   {
@@ -177,7 +183,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         apiKey,
       });
 
-      const output = renderTerminal(result.verdicts);
+      const output = renderPlain(result.verdicts);
       return { content: [{ type: 'text', text: output }] };
     } catch (err) {
       return { isError: true, content: [{ type: 'text', text: `Failed to run drift check: ${String(err)}` }] };
@@ -192,33 +198,132 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
       const { intents } = await parseIntentDir(intentDir);
       const provider = await detectProvider(repoRoot);
-      let contextStr = `Architecture Context for files: ${files.join(', ')}\n\n`;
-      
-      const relevantIntents = intents.filter(i => {
-        // Simplified check, normally would use micromatch on i.frontmatter.scope
-        return true; 
-      });
-      contextStr += `Relevant Intents: ${relevantIntents.map(i => i.frontmatter.id).join(', ')}\n`;
+
+      // Only rules whose scope actually covers these files. Returning every
+      // rule buries the two that matter and teaches the agent to skim.
+      const relevant = intents.filter(
+        (i) =>
+          i.frontmatter.status === 'active' &&
+          micromatch(files, i.frontmatter.scope).length > 0,
+      );
+
+      const lines = [`Architecture context for: ${files.join(', ')}`, ''];
+
+      if (relevant.length === 0) {
+        lines.push('No active intent covers these files.');
+      } else {
+        lines.push(`${relevant.length} active intent(s) apply here:`);
+        for (const i of relevant) {
+          lines.push(
+            '',
+            `- ${i.frontmatter.id} (${i.frontmatter.severity}, ${i.frontmatter.check})`,
+            `  ${i.frontmatter.title}`,
+            `  rule: ${i.frontmatter.rule.trim().replace(/\n/g, '\n        ')}`,
+          );
+        }
+      }
 
       if (provider.getQueryEngine) {
         const query = await provider.getQueryEngine();
-        const neighbors = query.neighbors(files, 1);
-        contextStr += `Graph Context (1 hop neighbors): ${neighbors.join(', ')}\n`;
+        const neighbors = query.neighbors(files, 1).filter((n) => !files.includes(n));
+        lines.push(
+          '',
+          neighbors.length > 0
+            ? `Direct dependencies and dependents: ${neighbors.join(', ')}`
+            : 'No indexed dependencies or dependents for these files.',
+        );
       }
 
-      return { content: [{ type: 'text', text: contextStr }] };
+      return { content: [{ type: 'text', text: lines.join('\n') }] };
     } catch (err) {
       return { isError: true, content: [{ type: 'text', text: `Failed to get context: ${String(err)}` }] };
     }
   }
 
   if (name === 'check_plan') {
-    const planText = typedArgs['plan_text'];
-    return { content: [{ type: 'text', text: `[Not Implemented in Phase 3 yet] check_plan called with text length: ${planText?.length}` }] };
+    const intentDir = resolve(typedArgs['intentDir'] || '.agent/intent');
+    const planText: string = typedArgs['plan_text'] || '';
+
+    if (!planText.trim()) {
+      return { isError: true, content: [{ type: 'text', text: 'plan_text is required.' }] };
+    }
+
+    try {
+      const { intents, errors } = await parseIntentDir(intentDir);
+      if (errors.length > 0) {
+        return {
+          isError: true,
+          content: [{ type: 'text', text: `Intent parse errors:\n${errors.map((e) => e.message).join('\n')}` }],
+        };
+      }
+
+      const result = await checkPlan({
+        intents,
+        planText,
+        apiKey: resolveLlmApiKey(process.env),
+      });
+      return { content: [{ type: 'text', text: renderPlanReview(result) }] };
+    } catch (err) {
+      return { isError: true, content: [{ type: 'text', text: `Failed to review plan: ${String(err)}` }] };
+    }
   }
 
   if (name === 'explain_violation') {
-    return { content: [{ type: 'text', text: `[Not Implemented in Phase 3 yet] explain_violation for intent ${typedArgs['intentId']}` }] };
+    const repoRoot = resolve(typedArgs['repoRoot'] || '.');
+    const intentDir = resolve(typedArgs['intentDir'] || '.agent/intent');
+    const intentId: string = typedArgs['intentId'] || '';
+    const diffText: string = typedArgs['diff_text'] || '';
+
+    try {
+      const { intents } = await parseIntentDir(intentDir);
+      const intent = intents.find((i) => i.frontmatter.id === intentId);
+      if (!intent) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text',
+              text: `No intent with id "${intentId}". Known ids: ${intents.map((i) => i.frontmatter.id).join(', ') || '(none)'}`,
+            },
+          ],
+        };
+      }
+
+      const parsedDiff = parseDiff(diffText);
+      if (parsedDiff.files.length === 0) {
+        // Answering "pass" for input we could not read would be the worst
+        // possible reply: a green light nobody checked.
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text',
+              text:
+                'diff_text contained no recognisable file headers, so nothing could be attributed to a file.\n' +
+                'Pass a unified diff, for example:\n' +
+                '  diff --git a/src/utils.ts b/src/utils.ts\n' +
+                '  +++ b/src/utils.ts\n' +
+                '  @@ -1,2 +1,3 @@\n' +
+                "  +import _ from 'lodash';",
+            },
+          ],
+        };
+      }
+      const provider = await detectProvider(repoRoot);
+      const { verdict } = await runDeterministicCheck(
+        intent,
+        parsedDiff,
+        await getCurrentCommit(repoRoot),
+        provider,
+        repoRoot,
+      );
+
+      return {
+        content: [{ type: 'text', text: renderExplanation(intent, withEnforcement(intent, verdict)) }],
+      };
+    } catch (err) {
+      return { isError: true, content: [{ type: 'text', text: `Failed to explain violation: ${String(err)}` }] };
+    }
   }
 
   throw new Error(`Tool not found: ${name}`);

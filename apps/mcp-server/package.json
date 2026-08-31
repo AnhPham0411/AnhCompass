@@ -16,12 +16,14 @@
     "@anhcompass/core": "workspace:*",
     "@anhcompass/graph": "workspace:*",
     "@anhcompass/llm": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.12.0"
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "micromatch": "^4.0.8"
   },
   "devDependencies": {
     "tsup": "*",
     "typescript": "*",
     "tsx": "*",
-    "@types/node": "*"
+    "@types/node": "*",
+    "@types/micromatch": "*"
   }
 }
