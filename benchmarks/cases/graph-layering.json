@@ -1,0 +1,716 @@
+[
+  {
+    "id": "graph-transitive-2hop",
+    "category": "wrong",
+    "engine": "graph",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-stripe",
+      "title": "API layer must not depend on the Stripe SDK",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "stripe"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,5 @@\n+import { PaymentService } from '../application/PaymentService';\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { PaymentService } from '../application/PaymentService';\n\nexport async function createPayment(req: Request): Promise<Response> {\n  return Response.json(await new PaymentService().charge(req.body));\n}",
+      "src/application/PaymentService.ts": "import Stripe from 'stripe';\n\nexport class PaymentService {\n  private client = new Stripe(process.env.KEY!);\n  async charge(body: unknown) {\n    return this.client.charges.create(body as never);\n  }\n}\n"
+    },
+    "notes": "The canonical case: the controller never names stripe, but reaches it in one hop. Line matching cannot see this."
+  },
+  {
+    "id": "graph-transitive-3hop",
+    "category": "wrong",
+    "engine": "graph",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-stripe",
+      "title": "API layer must not depend on the Stripe SDK",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "stripe"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,5 @@\n+import { PaymentService } from '../application/PaymentService';\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { PaymentService } from '../application/PaymentService';\n\nexport async function createPayment(req: Request): Promise<Response> {\n  return Response.json(await new PaymentService().charge(req.body));\n}",
+      "src/application/PaymentService.ts": "import { StripeGateway } from '../infrastructure/StripeGateway';\n\nexport class PaymentService {\n  async charge(b: unknown) { return new StripeGateway().send(b); }\n}\n",
+      "src/infrastructure/StripeGateway.ts": "import Stripe from 'stripe';\n\nexport class StripeGateway {\n  async send(b: unknown) { return new Stripe('k').charges.create(b as never); }\n}\n"
+    },
+    "notes": "Three hops to the forbidden package."
+  },
+  {
+    "id": "graph-transitive-via-barrel",
+    "category": "wrong",
+    "engine": "graph",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-stripe",
+      "title": "API layer must not depend on the Stripe SDK",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "stripe"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,5 @@\n+import { PaymentService } from '../application';\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { PaymentService } from '../application';\n\nexport async function createPayment(req: Request): Promise<Response> {\n  return Response.json(await new PaymentService().charge(req.body));\n}",
+      "src/application/index.ts": "export * from './PaymentService';\n",
+      "src/application/PaymentService.ts": "import Stripe from 'stripe';\n\nexport class PaymentService {\n  async charge(b: unknown) { return new Stripe('k').charges.create(b as never); }\n}\n"
+    },
+    "notes": "A barrel index.ts launders the dependency. Requires both directory-index resolution and re-export following."
+  },
+  {
+    "id": "graph-transitive-unchanged-hop",
+    "category": "edge",
+    "engine": "graph",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-stripe",
+      "title": "API layer must not depend on the Stripe SDK",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "stripe"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,7 @@\n-  return Response.json(await new PaymentService().charge(req.body));\n+  const result = await new PaymentService().charge(req.body);\n+  return Response.json(result);\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { PaymentService } from '../application/PaymentService';\n\nexport async function createPayment(req: Request): Promise<Response> {\n  return Response.json(await new PaymentService().charge(req.body));\n}",
+      "src/application/PaymentService.ts": "import Stripe from 'stripe';\n\nexport class PaymentService {\n  async charge(b: unknown) { return new Stripe('k').charges.create(b as never); }\n}\n"
+    },
+    "notes": "The diff adds no import at all — the forbidden path already exists in the repo. A checker that only reads added lines reports PASS on a violating repository."
+  },
+  {
+    "id": "graph-layer-api-to-infra-direct",
+    "category": "wrong",
+    "engine": "graph",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-infrastructure",
+      "title": "API layer must not reach the infrastructure layer",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "src/api may depend on src/application only. It must never reach src/infrastructure, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "src/infrastructure/**"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "src/api may depend on src/application only. It must never reach src/infrastructure, directly or transitively.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,5 @@\n+import { PaymentService } from '../infrastructure/StripeGateway';\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { PaymentService } from '../infrastructure/StripeGateway';\n\nexport async function createPayment(req: Request): Promise<Response> {\n  return Response.json(await new PaymentService().charge(req.body));\n}",
+      "src/infrastructure/StripeGateway.ts": "export class PaymentService { async charge(b: unknown) { return b; } }\n"
+    },
+    "notes": "Layer boundary crossed directly. The forbidden target is a path glob, not a package name."
+  },
+  {
+    "id": "graph-layer-api-to-infra-transitive",
+    "category": "wrong",
+    "engine": "graph",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-infrastructure",
+      "title": "API layer must not reach the infrastructure layer",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "src/api may depend on src/application only. It must never reach src/infrastructure, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "src/infrastructure/**"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "src/api may depend on src/application only. It must never reach src/infrastructure, directly or transitively.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,5 @@\n+import { PaymentService } from '../application/PaymentService';\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { PaymentService } from '../application/PaymentService';\n\nexport async function createPayment(req: Request): Promise<Response> {\n  return Response.json(await new PaymentService().charge(req.body));\n}",
+      "src/application/PaymentService.ts": "import { Db } from '../infrastructure/Db';\n\nexport class PaymentService {\n  async charge(b: unknown) { return new Db().save(b); }\n}\n",
+      "src/infrastructure/Db.ts": "export class Db { async save(b: unknown) { return b; } }\n"
+    },
+    "notes": "Layer boundary crossed through the allowed middle layer. Whether this is a violation is exactly the question a graph answers and a regex cannot."
+  },
+  {
+    "id": "graph-layer-domain-to-infra",
+    "category": "wrong",
+    "engine": "graph",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "domain-no-infrastructure",
+      "title": "Domain must not depend on infrastructure",
+      "scope": [
+        "src/domain/**"
+      ],
+      "check": "deterministic",
+      "rule": "The domain layer is the innermost ring: it must not depend on src/infrastructure at any depth.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/domain/**"
+        ],
+        "to": [
+          "src/infrastructure/**"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The domain layer is the innermost ring: it must not depend on src/infrastructure at any depth.",
+    "diff": "diff --git a/src/domain/Payment.ts b/src/domain/Payment.ts\n--- a/src/domain/Payment.ts\n+++ b/src/domain/Payment.ts\n@@ -1,4 +1,5 @@\n+import { Db } from '../infrastructure/Db';\n",
+    "fixture": {
+      "src/domain/Payment.ts": "import { Db } from '../infrastructure/Db';\n\nexport class Payment {\n  save() { return new Db().save(this); }\n}\n",
+      "src/infrastructure/Db.ts": "export class Db { async save(b: unknown) { return b; } }\n"
+    },
+    "notes": "The innermost ring reaching outward — the classic dependency-inversion break."
+  },
+  {
+    "id": "graph-layer-infra-to-application-allowed",
+    "category": "correct",
+    "engine": "graph",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-infrastructure",
+      "title": "API layer must not reach the infrastructure layer",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "src/api may depend on src/application only. It must never reach src/infrastructure, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "src/infrastructure/**"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "src/api may depend on src/application only. It must never reach src/infrastructure, directly or transitively.",
+    "diff": "diff --git a/src/infrastructure/Db.ts b/src/infrastructure/Db.ts\n--- a/src/infrastructure/Db.ts\n+++ b/src/infrastructure/Db.ts\n@@ -1,4 +1,5 @@\n+import type { Payment } from '../application/PaymentService';\n",
+    "fixture": {
+      "src/infrastructure/Db.ts": "import type { Payment } from '../application/PaymentService';\n\nexport class Db { async save(p: Payment) { return p; } }\n",
+      "src/application/PaymentService.ts": "export interface Payment { id: string }\nexport class PaymentService {}\n"
+    },
+    "notes": "Infrastructure depending inward is the allowed direction; this intent only constrains src/api."
+  },
+  {
+    "id": "graph-layer-allowed-chain",
+    "category": "correct",
+    "engine": "graph",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-infrastructure",
+      "title": "API layer must not reach the infrastructure layer",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "src/api may depend on src/application only. It must never reach src/infrastructure, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "src/infrastructure/**"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "src/api may depend on src/application only. It must never reach src/infrastructure, directly or transitively.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,5 @@\n+import { PaymentService } from '../application/PaymentService';\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { PaymentService } from '../application/PaymentService';\n\nexport async function createPayment(req: Request): Promise<Response> {\n  return Response.json(await new PaymentService().charge(req.body));\n}",
+      "src/application/PaymentService.ts": "import { Payment } from '../domain/Payment';\n\nexport class PaymentService {\n  async charge(b: unknown) { return new Payment(); }\n}\n",
+      "src/domain/Payment.ts": "export class Payment {}\n"
+    },
+    "notes": "api → application → domain is the intended direction. Must not be flagged."
+  },
+  {
+    "id": "graph-no-path-between-layers",
+    "category": "correct",
+    "engine": "graph",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-infrastructure",
+      "title": "API layer must not reach the infrastructure layer",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "src/api may depend on src/application only. It must never reach src/infrastructure, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "src/infrastructure/**"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "src/api may depend on src/application only. It must never reach src/infrastructure, directly or transitively.",
+    "diff": "diff --git a/src/api/HealthController.ts b/src/api/HealthController.ts\n--- a/src/api/HealthController.ts\n+++ b/src/api/HealthController.ts\n@@ -1,4 +1,5 @@\n+import { version } from '../application/meta';\n",
+    "fixture": {
+      "src/api/HealthController.ts": "import { version } from '../application/meta';\n\nexport const health = () => ({ version });\n",
+      "src/application/meta.ts": "export const version = '1.0.0';\n",
+      "src/infrastructure/Db.ts": "export class Db {}\n"
+    },
+    "notes": "Both layers exist but no edge connects them. Reachability must return false, not \"infrastructure exists therefore risky\"."
+  },
+  {
+    "id": "graph-transitive-type-only-hop",
+    "category": "edge",
+    "engine": "graph",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-stripe",
+      "title": "API layer must not depend on the Stripe SDK",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "stripe"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,5 @@\n+import { PaymentService } from '../application/PaymentService';\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { PaymentService } from '../application/PaymentService';\n\nexport async function createPayment(req: Request): Promise<Response> {\n  return Response.json(await new PaymentService().charge(req.body));\n}",
+      "src/application/PaymentService.ts": "import type { Stripe } from 'stripe';\n\nexport class PaymentService {\n  client?: Stripe;\n}\n"
+    },
+    "notes": "The middle hop is type-only. Kept consistent with det-syntax-type-only: still a declared dependency, so still a violation."
+  },
+  {
+    "id": "graph-transitive-dynamic-hop",
+    "category": "edge",
+    "engine": "graph",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-stripe",
+      "title": "API layer must not depend on the Stripe SDK",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "stripe"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,5 @@\n+import { PaymentService } from '../application/PaymentService';\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { PaymentService } from '../application/PaymentService';\n\nexport async function createPayment(req: Request): Promise<Response> {\n  return Response.json(await new PaymentService().charge(req.body));\n}",
+      "src/application/PaymentService.ts": "export class PaymentService {\n  async charge(b: unknown) {\n    const Stripe = await import('stripe');\n    return new Stripe.default('k').charges.create(b as never);\n  }\n}\n"
+    },
+    "notes": "The forbidden edge is a dynamic import inside a method body."
+  },
+  {
+    "id": "graph-transitive-broken-by-removal",
+    "category": "correct",
+    "engine": "graph",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-stripe",
+      "title": "API layer must not depend on the Stripe SDK",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "stripe"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+    "diff": "diff --git a/src/application/PaymentService.ts b/src/application/PaymentService.ts\n--- a/src/application/PaymentService.ts\n+++ b/src/application/PaymentService.ts\n@@ -1,4 +1,6 @@\n-import Stripe from 'stripe';\n+import { gateway } from './gateway';\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { PaymentService } from '../application/PaymentService';\n\nexport async function createPayment(req: Request): Promise<Response> {\n  return Response.json(await new PaymentService().charge(req.body));\n}",
+      "src/application/PaymentService.ts": "import { gateway } from './gateway';\n\nexport class PaymentService {\n  async charge(b: unknown) { return gateway(b); }\n}\n",
+      "src/application/gateway.ts": "export const gateway = async (b: unknown) => b;\n"
+    },
+    "notes": "The fixture is the post-diff state: the forbidden hop was just removed. This is the fix landing, and must read as PASS."
+  },
+  {
+    "id": "graph-path-through-test-file",
+    "category": "edge",
+    "engine": "graph",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-stripe",
+      "title": "API layer must not depend on the Stripe SDK",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "stripe"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,5 @@\n+import { PaymentService } from '../application/PaymentService';\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { PaymentService } from '../application/PaymentService';\n\nexport async function createPayment(req: Request): Promise<Response> {\n  return Response.json(await new PaymentService().charge(req.body));\n}",
+      "src/application/PaymentService.ts": "export class PaymentService { async charge(b: unknown) { return b; } }\n",
+      "src/application/PaymentService.test.ts": "import Stripe from 'stripe';\nimport { PaymentService } from './PaymentService';\n\ntest('charges', () => { void Stripe; void PaymentService; });\n"
+    },
+    "notes": "A test file imports both the unit under test and stripe. Tests are leaves, never on a production dependency path — traversal must not route through them. Design decision, recorded here so Phase 1 implements it deliberately."
+  },
+  {
+    "id": "graph-relative-extensionless",
+    "category": "wrong",
+    "engine": "graph",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-stripe",
+      "title": "API layer must not depend on the Stripe SDK",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "stripe"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,5 @@\n+import { PaymentService } from '../application/PaymentService';\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { PaymentService } from '../application/PaymentService';\n\nexport async function createPayment(req: Request): Promise<Response> {\n  return Response.json(await new PaymentService().charge(req.body));\n}",
+      "src/application/PaymentService.ts": "import Stripe from 'stripe';\n\nexport class PaymentService {\n  async charge(b: unknown) { return new Stripe('k').charges.create(b as never); }\n}\n"
+    },
+    "notes": "Extensionless relative specifier must resolve to the .ts file. Resolution correctness, stated as its own case."
+  },
+  {
+    "id": "graph-index-implicit",
+    "category": "wrong",
+    "engine": "graph",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-infrastructure",
+      "title": "API layer must not reach the infrastructure layer",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "src/api may depend on src/application only. It must never reach src/infrastructure, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "src/infrastructure/**"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "src/api may depend on src/application only. It must never reach src/infrastructure, directly or transitively.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,5 @@\n+import { PaymentService } from '../application';\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { PaymentService } from '../application';\n\nexport async function createPayment(req: Request): Promise<Response> {\n  return Response.json(await new PaymentService().charge(req.body));\n}",
+      "src/application/index.ts": "export { PaymentService } from './PaymentService';\n",
+      "src/application/PaymentService.ts": "import { Db } from '../infrastructure/Db';\n\nexport class PaymentService {\n  async charge(b: unknown) { return new Db().save(b); }\n}\n",
+      "src/infrastructure/Db.ts": "export class Db { async save(b: unknown) { return b; } }\n"
+    },
+    "notes": "Directory specifier resolving to index.ts, then a named re-export, then the boundary break."
+  },
+  {
+    "id": "graph-tsconfig-alias",
+    "category": "edge",
+    "engine": "graph",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-stripe",
+      "title": "API layer must not depend on the Stripe SDK",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "stripe"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,5 @@\n+import { PaymentService } from '@/application/PaymentService';\n",
+    "fixture": {
+      "tsconfig.json": "{\n  \"compilerOptions\": {\n    \"baseUrl\": \".\",\n    \"paths\": {\n      \"@/*\": [\n        \"src/*\"\n      ]\n    }\n  }\n}\n",
+      "src/api/PaymentController.ts": "import { PaymentService } from '@/application/PaymentService';\n\nexport async function createPayment(req: Request): Promise<Response> {\n  return Response.json(await new PaymentService().charge(req.body));\n}",
+      "src/application/PaymentService.ts": "import Stripe from 'stripe';\n\nexport class PaymentService {\n  async charge(b: unknown) { return new Stripe('k').charges.create(b as never); }\n}\n"
+    },
+    "notes": "Path alias from tsconfig. Without reading tsconfig paths, @/... looks like an external package and the chain is lost."
+  },
+  {
+    "id": "graph-deep-chain-5hop",
+    "category": "wrong",
+    "engine": "graph",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-stripe",
+      "title": "API layer must not depend on the Stripe SDK",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "stripe"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,5 @@\n+import { PaymentService } from '../application/a';\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { PaymentService } from '../application/a';\n\nexport async function createPayment(req: Request): Promise<Response> {\n  return Response.json(await new PaymentService().charge(req.body));\n}",
+      "src/application/a.ts": "export { PaymentService } from './b';\n",
+      "src/application/b.ts": "export { PaymentService } from './c';\n",
+      "src/application/c.ts": "export { PaymentService } from './d';\n",
+      "src/application/d.ts": "import Stripe from 'stripe';\n\nexport class PaymentService {\n  async charge(b: unknown) { return new Stripe('k').charges.create(b as never); }\n}\n"
+    },
+    "notes": "Five hops. Guards against a traversal depth cap set too low to be useful."
+  },
+  {
+    "id": "graph-sibling-within-layer",
+    "category": "correct",
+    "engine": "graph",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-infrastructure",
+      "title": "API layer must not reach the infrastructure layer",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "src/api may depend on src/application only. It must never reach src/infrastructure, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "src/infrastructure/**"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "src/api may depend on src/application only. It must never reach src/infrastructure, directly or transitively.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,5 @@\n+import { parseBody } from './parseBody';\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { parseBody } from './parseBody';\n\nexport const createPayment = (r: Request) => parseBody(r);\n",
+      "src/api/parseBody.ts": "export const parseBody = (r: Request) => r.body;\n",
+      "src/infrastructure/Db.ts": "export class Db {}\n"
+    },
+    "notes": "Intra-layer dependency, always allowed."
+  },
+  {
+    "id": "graph-reexport-launders-package",
+    "category": "wrong",
+    "engine": "graph",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-stripe",
+      "title": "API layer must not depend on the Stripe SDK",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "stripe"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The API layer must not depend on the stripe SDK, directly or through any intermediate module.",
+    "diff": "diff --git a/src/api/PaymentController.ts b/src/api/PaymentController.ts\n--- a/src/api/PaymentController.ts\n+++ b/src/api/PaymentController.ts\n@@ -1,4 +1,5 @@\n+import { Stripe } from '../application/vendor';\n",
+    "fixture": {
+      "src/api/PaymentController.ts": "import { Stripe } from '../application/vendor';\n\nexport const client = new Stripe('k');\n",
+      "src/application/vendor.ts": "export { default as Stripe } from 'stripe';\n"
+    },
+    "notes": "A one-line re-export module used specifically to launder a forbidden package past a name-based check."
+  }
+]

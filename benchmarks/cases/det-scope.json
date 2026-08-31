@@ -1,0 +1,374 @@
+[
+  {
+    "id": "det-scope-outside-src",
+    "category": "correct",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/scripts/build.ts b/scripts/build.ts\n--- a/scripts/build.ts\n+++ b/scripts/build.ts\n@@ -1,4 +1,5 @@\n+import _ from 'lodash';\n",
+    "notes": "Build scripts are outside the intent scope."
+  },
+  {
+    "id": "det-scope-nested-deep",
+    "category": "wrong",
+    "engine": "deterministic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/a/b/c/d/e.ts b/src/a/b/c/d/e.ts\n--- a/src/a/b/c/d/e.ts\n+++ b/src/a/b/c/d/e.ts\n@@ -1,4 +1,5 @@\n+import _ from 'lodash';\n",
+    "notes": "Deeply nested file still matches src/**."
+  },
+  {
+    "id": "det-scope-root-file",
+    "category": "wrong",
+    "engine": "deterministic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/index.ts b/src/index.ts\n--- a/src/index.ts\n+++ b/src/index.ts\n@@ -1,4 +1,5 @@\n+import _ from 'lodash';\n",
+    "notes": "File directly under src/."
+  },
+  {
+    "id": "det-scope-test-file",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.test.ts b/src/utils.test.ts\n--- a/src/utils.test.ts\n+++ b/src/utils.test.ts\n@@ -1,4 +1,5 @@\n+import _ from 'lodash';\n",
+    "notes": "Test files sit inside src/** so this intent covers them. Exempting tests should be an explicit exceptions[] entry, not a silent pass."
+  },
+  {
+    "id": "det-scope-disable-line-targeted",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,5 @@\n+import _ from 'lodash'; // anhcompass-disable-line no-lodash\n",
+    "notes": "Inline suppression naming this intent."
+  },
+  {
+    "id": "det-scope-disable-line-bare",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,5 @@\n+import _ from 'lodash'; // anhcompass-disable-line\n",
+    "notes": "Bare inline suppression suppresses every intent on that line."
+  },
+  {
+    "id": "det-scope-disable-line-other-intent",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,5 @@\n+import _ from 'lodash'; // anhcompass-disable-line some-other-rule\n",
+    "notes": "Suppression naming a different intent must not apply here."
+  },
+  {
+    "id": "det-scope-disable-next-line",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,6 @@\n+// anhcompass-disable-next-line no-lodash\n+import _ from 'lodash';\n",
+    "notes": "Next-line suppression naming this intent."
+  },
+  {
+    "id": "det-scope-disable-next-line-other",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,6 @@\n+// anhcompass-disable-next-line some-other-rule\n+import _ from 'lodash';\n",
+    "notes": "Next-line suppression for a different intent."
+  },
+  {
+    "id": "det-scope-multi-file-one-dirty",
+    "category": "wrong",
+    "engine": "deterministic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/clean.ts b/src/clean.ts\n--- a/src/clean.ts\n+++ b/src/clean.ts\n@@ -1,4 +1,5 @@\n+export const a = 1;\ndiff --git a/src/dirty.ts b/src/dirty.ts\n--- a/src/dirty.ts\n+++ b/src/dirty.ts\n@@ -1,4 +1,5 @@\n+import _ from 'lodash';\n",
+    "notes": "Multi-file diff where only one file violates."
+  },
+  {
+    "id": "det-scope-two-violations",
+    "category": "wrong",
+    "engine": "deterministic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,6 @@\n+import _ from 'lodash';\n+import chunk from 'lodash/chunk';\n",
+    "notes": "Two forbidden imports in one file — both should surface as evidence."
+  },
+  {
+    "id": "det-scope-unrelated-edit",
+    "category": "correct",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,6 @@\n-export const a = 1;\n+export const a = 2;\n",
+    "notes": "In-scope file, unrelated change."
+  }
+]

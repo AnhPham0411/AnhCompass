@@ -1,12 +1,12 @@
 import type { Command } from 'commander';
 import { resolve } from 'node:path';
-import { parseIntentDir } from '@anhcompass/core';
+import { parseIntentDir, runDoctor } from '@anhcompass/core';
 import pc from 'picocolors';
 
 export function registerDoctor(program: Command): void {
   program
     .command('doctor')
-    .description('Check intent store health (parse-only in Phase 0)')
+    .description('Check intent store health')
     .option('--intent-dir <dir>', 'Path to intent directory', '.agent/intent')
     .action(async (opts: { intentDir: string }) => {
       const intentDir = resolve(opts.intentDir);
@@ -19,7 +19,17 @@ export function registerDoctor(program: Command): void {
       if (errors.length > 0) {
         console.error(pc.red(`\n  ${errors.length} parse error(s) found:`));
         for (const e of errors) {
-          console.error(pc.red(`  ✗ ${e.message}`));
+          console.error(pc.red(`  x ${e.message}`));
+        }
+      }
+
+      const issues = runDoctor(intents);
+      if (issues.length > 0) {
+        console.log(pc.yellow(`\n  ${issues.length} logic issue(s) found:`));
+        for (const issue of issues) {
+          const color = issue.type === 'error' ? pc.red : pc.yellow;
+          const icon = issue.type === 'error' ? 'x' : '!';
+          console.log(color(`  ${icon} [${issue.intentId}] ${issue.message}`));
         }
       }
 
@@ -32,10 +42,11 @@ export function registerDoctor(program: Command): void {
       console.log(`    ${pc.yellow(String(proposed.length))} proposed`);
       console.log(`    ${pc.dim(String(deprecated.length))} deprecated`);
 
-      if (errors.length > 0) {
+      const hasErrors = errors.length > 0 || issues.some(i => i.type === 'error');
+      if (hasErrors) {
         process.exit(1);
-      } else {
-        console.log(pc.green('\n  ✓ No issues found'));
+      } else if (issues.length === 0) {
+        console.log(pc.green('\n  v No issues found'));
       }
     });
 }

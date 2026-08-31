@@ -1,0 +1,436 @@
+[
+  {
+    "id": "det-py-import",
+    "category": "wrong",
+    "engine": "deterministic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "py-no-requests",
+      "title": "No direct requests imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Service code must use the shared http client, never the requests library directly.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Service code must use the shared http client, never the requests library directly.",
+    "diff": "diff --git a/src/client.py b/src/client.py\n--- a/src/client.py\n+++ b/src/client.py\n@@ -1,4 +1,5 @@\n+import requests\n",
+    "notes": "Plain module import."
+  },
+  {
+    "id": "det-py-from-import",
+    "category": "wrong",
+    "engine": "deterministic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "py-no-requests",
+      "title": "No direct requests imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Service code must use the shared http client, never the requests library directly.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Service code must use the shared http client, never the requests library directly.",
+    "diff": "diff --git a/src/client.py b/src/client.py\n--- a/src/client.py\n+++ b/src/client.py\n@@ -1,4 +1,5 @@\n+from requests import get\n",
+    "notes": "from-import form."
+  },
+  {
+    "id": "det-py-from-submodule",
+    "category": "wrong",
+    "engine": "deterministic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "py-no-requests",
+      "title": "No direct requests imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Service code must use the shared http client, never the requests library directly.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Service code must use the shared http client, never the requests library directly.",
+    "diff": "diff --git a/src/client.py b/src/client.py\n--- a/src/client.py\n+++ b/src/client.py\n@@ -1,4 +1,5 @@\n+from requests.adapters import HTTPAdapter\n",
+    "notes": "Submodule import."
+  },
+  {
+    "id": "det-py-import-as",
+    "category": "wrong",
+    "engine": "deterministic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "py-no-requests",
+      "title": "No direct requests imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Service code must use the shared http client, never the requests library directly.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Service code must use the shared http client, never the requests library directly.",
+    "diff": "diff --git a/src/client.py b/src/client.py\n--- a/src/client.py\n+++ b/src/client.py\n@@ -1,4 +1,5 @@\n+import requests as rq\n",
+    "notes": "Aliased import."
+  },
+  {
+    "id": "det-py-indented",
+    "category": "wrong",
+    "engine": "deterministic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "py-no-requests",
+      "title": "No direct requests imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Service code must use the shared http client, never the requests library directly.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Service code must use the shared http client, never the requests library directly.",
+    "diff": "diff --git a/src/client.py b/src/client.py\n--- a/src/client.py\n+++ b/src/client.py\n@@ -1,4 +1,7 @@\n+def fetch():\n+    import requests\n+    return requests.get(\"/\")\n",
+    "notes": "Function-local import — still a dependency."
+  },
+  {
+    "id": "det-py-multiple-on-line",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "py-no-requests",
+      "title": "No direct requests imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Service code must use the shared http client, never the requests library directly.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Service code must use the shared http client, never the requests library directly.",
+    "diff": "diff --git a/src/client.py b/src/client.py\n--- a/src/client.py\n+++ b/src/client.py\n@@ -1,4 +1,5 @@\n+import json, requests\n",
+    "notes": "Comma-separated import list."
+  },
+  {
+    "id": "det-py-paren-multiline",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "py-no-requests",
+      "title": "No direct requests imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Service code must use the shared http client, never the requests library directly.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Service code must use the shared http client, never the requests library directly.",
+    "diff": "diff --git a/src/client.py b/src/client.py\n--- a/src/client.py\n+++ b/src/client.py\n@@ -1,4 +1,8 @@\n+from requests import (\n+    get,\n+    post,\n+)\n",
+    "notes": "Parenthesized multi-line from-import."
+  },
+  {
+    "id": "det-py-comment",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "py-no-requests",
+      "title": "No direct requests imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Service code must use the shared http client, never the requests library directly.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Service code must use the shared http client, never the requests library directly.",
+    "diff": "diff --git a/src/client.py b/src/client.py\n--- a/src/client.py\n+++ b/src/client.py\n@@ -1,4 +1,6 @@\n+# import requests\n+from .http import get\n",
+    "notes": "Commented-out import."
+  },
+  {
+    "id": "det-py-docstring",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "py-no-requests",
+      "title": "No direct requests imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Service code must use the shared http client, never the requests library directly.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Service code must use the shared http client, never the requests library directly.",
+    "diff": "diff --git a/src/client.py b/src/client.py\n--- a/src/client.py\n+++ b/src/client.py\n@@ -1,4 +1,5 @@\n+\"\"\"Legacy note: import requests was removed.\"\"\"\n",
+    "notes": "Module docstring mentioning the import."
+  },
+  {
+    "id": "det-py-string-literal",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "py-no-requests",
+      "title": "No direct requests imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Service code must use the shared http client, never the requests library directly.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Service code must use the shared http client, never the requests library directly.",
+    "diff": "diff --git a/src/codegen.py b/src/codegen.py\n--- a/src/codegen.py\n+++ b/src/codegen.py\n@@ -1,4 +1,5 @@\n+TEMPLATE = \"import requests\"\n",
+    "notes": "String literal containing import syntax."
+  },
+  {
+    "id": "det-py-similar-module",
+    "category": "correct",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "py-no-requests",
+      "title": "No direct requests imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Service code must use the shared http client, never the requests library directly.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Service code must use the shared http client, never the requests library directly.",
+    "diff": "diff --git a/src/client.py b/src/client.py\n--- a/src/client.py\n+++ b/src/client.py\n@@ -1,4 +1,5 @@\n+import requests_mock\n",
+    "notes": "Different module whose name shares the prefix."
+  },
+  {
+    "id": "det-py-similar-from",
+    "category": "correct",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "py-no-requests",
+      "title": "No direct requests imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Service code must use the shared http client, never the requests library directly.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Service code must use the shared http client, never the requests library directly.",
+    "diff": "diff --git a/src/client.py b/src/client.py\n--- a/src/client.py\n+++ b/src/client.py\n@@ -1,4 +1,5 @@\n+from requests_toolbelt import MultipartEncoder\n",
+    "notes": "Different package sharing the prefix, from-import form."
+  },
+  {
+    "id": "det-py-relative-import",
+    "category": "correct",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "py-no-requests",
+      "title": "No direct requests imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Service code must use the shared http client, never the requests library directly.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Service code must use the shared http client, never the requests library directly.",
+    "diff": "diff --git a/src/client.py b/src/client.py\n--- a/src/client.py\n+++ b/src/client.py\n@@ -1,4 +1,5 @@\n+from .requests import helper\n",
+    "notes": "Local module named requests, reached relatively."
+  },
+  {
+    "id": "det-py-clean",
+    "category": "correct",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "py-no-requests",
+      "title": "No direct requests imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Service code must use the shared http client, never the requests library directly.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Service code must use the shared http client, never the requests library directly.",
+    "diff": "diff --git a/src/client.py b/src/client.py\n--- a/src/client.py\n+++ b/src/client.py\n@@ -1,4 +1,7 @@\n+from .http import get\n+def fetch():\n+    return get(\"/\")\n",
+    "notes": "Uses the shared client as the rule intends."
+  }
+]

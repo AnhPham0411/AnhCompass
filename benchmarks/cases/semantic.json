@@ -1,0 +1,314 @@
+[
+  {
+    "id": "sem-controller-business-logic",
+    "category": "wrong",
+    "engine": "semantic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "controllers-delegate",
+      "title": "Controllers delegate business logic",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "semantic",
+      "rule": "Controllers may parse input, call exactly one service, and shape the response. Pricing, tax, discount and other business rules belong in the service layer.",
+      "severity": "warn",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Controllers may parse input, call exactly one service, and shape the response. Pricing, tax, discount and other business rules belong in the service layer.",
+    "diff": "diff --git a/src/api/OrderController.ts b/src/api/OrderController.ts\n--- a/src/api/OrderController.ts\n+++ b/src/api/OrderController.ts\n@@ -1,4 +1,12 @@\n+export async function createOrder(req: Request) {\n+  const items = await req.json();\n+  let subtotal = 0;\n+  for (const it of items) subtotal += it.price * it.qty;\n+  const tax = subtotal > 1000 ? subtotal * 0.08 : subtotal * 0.05;\n+  const discount = items.length > 10 ? subtotal * 0.1 : 0;\n+  return Response.json({ total: subtotal + tax - discount });\n+}\n",
+    "notes": "Tax and discount rules computed inline in the controller — business logic in the wrong layer."
+  },
+  {
+    "id": "sem-controller-delegates",
+    "category": "correct",
+    "engine": "semantic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "controllers-delegate",
+      "title": "Controllers delegate business logic",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "semantic",
+      "rule": "Controllers may parse input, call exactly one service, and shape the response. Pricing, tax, discount and other business rules belong in the service layer.",
+      "severity": "warn",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Controllers may parse input, call exactly one service, and shape the response. Pricing, tax, discount and other business rules belong in the service layer.",
+    "diff": "diff --git a/src/api/OrderController.ts b/src/api/OrderController.ts\n--- a/src/api/OrderController.ts\n+++ b/src/api/OrderController.ts\n@@ -1,4 +1,9 @@\n+export async function createOrder(req: Request) {\n+  const items = await req.json();\n+  const total = await orderService.priceOrder(items);\n+  return Response.json({ total });\n+}\n",
+    "notes": "Parses input, delegates once, shapes the response. Exactly what the rule asks for."
+  },
+  {
+    "id": "sem-domain-raw-sql",
+    "category": "wrong",
+    "engine": "semantic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "domain-no-sql",
+      "title": "No SQL in the domain layer",
+      "scope": [
+        "src/domain/**"
+      ],
+      "check": "semantic",
+      "rule": "The domain layer expresses business rules only. Raw SQL, query builders and database drivers belong in the repository layer.",
+      "severity": "warn",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The domain layer expresses business rules only. Raw SQL, query builders and database drivers belong in the repository layer.",
+    "diff": "diff --git a/src/domain/Order.ts b/src/domain/Order.ts\n--- a/src/domain/Order.ts\n+++ b/src/domain/Order.ts\n@@ -1,4 +1,13 @@\n+export class Order {\n+  async loadItems(db: Pool) {\n+    const { rows } = await db.query(\n+      'SELECT id, price, qty FROM order_items WHERE order_id = $1',\n+      [this.id],\n+    );\n+    return rows;\n+  }\n+}\n",
+    "notes": "Raw SQL inside a domain entity."
+  },
+  {
+    "id": "sem-domain-pure-rule",
+    "category": "correct",
+    "engine": "semantic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "domain-no-sql",
+      "title": "No SQL in the domain layer",
+      "scope": [
+        "src/domain/**"
+      ],
+      "check": "semantic",
+      "rule": "The domain layer expresses business rules only. Raw SQL, query builders and database drivers belong in the repository layer.",
+      "severity": "warn",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The domain layer expresses business rules only. Raw SQL, query builders and database drivers belong in the repository layer.",
+    "diff": "diff --git a/src/domain/Order.ts b/src/domain/Order.ts\n--- a/src/domain/Order.ts\n+++ b/src/domain/Order.ts\n@@ -1,4 +1,9 @@\n+export class Order {\n+  isEligibleForFreeShipping(): boolean {\n+    return this.subtotal >= 500 && this.destination.country === \"VN\";\n+  }\n+}\n",
+    "notes": "A pure business rule in the domain layer."
+  },
+  {
+    "id": "sem-swallowed-error",
+    "category": "wrong",
+    "engine": "semantic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-swallowed-errors",
+      "title": "Errors must not be swallowed",
+      "scope": [
+        "src/**"
+      ],
+      "check": "semantic",
+      "rule": "A caught error must be rethrown, wrapped in a typed error, or logged with its cause. An empty catch block, or one that only returns a default, hides failures.",
+      "severity": "warn",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "A caught error must be rethrown, wrapped in a typed error, or logged with its cause. An empty catch block, or one that only returns a default, hides failures.",
+    "diff": "diff --git a/src/services/sync.ts b/src/services/sync.ts\n--- a/src/services/sync.ts\n+++ b/src/services/sync.ts\n@@ -1,4 +1,11 @@\n+export async function sync(id: string) {\n+  try {\n+    return await remote.fetch(id);\n+  } catch {\n+    return null;\n+  }\n+}\n",
+    "notes": "The catch discards the error and returns a default, hiding every failure mode behind null."
+  },
+  {
+    "id": "sem-error-wrapped",
+    "category": "correct",
+    "engine": "semantic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-swallowed-errors",
+      "title": "Errors must not be swallowed",
+      "scope": [
+        "src/**"
+      ],
+      "check": "semantic",
+      "rule": "A caught error must be rethrown, wrapped in a typed error, or logged with its cause. An empty catch block, or one that only returns a default, hides failures.",
+      "severity": "warn",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "A caught error must be rethrown, wrapped in a typed error, or logged with its cause. An empty catch block, or one that only returns a default, hides failures.",
+    "diff": "diff --git a/src/services/sync.ts b/src/services/sync.ts\n--- a/src/services/sync.ts\n+++ b/src/services/sync.ts\n@@ -1,4 +1,11 @@\n+export async function sync(id: string) {\n+  try {\n+    return await remote.fetch(id);\n+  } catch (cause) {\n+    throw new SyncFailedError(`sync failed for ${id}`, { cause });\n+  }\n+}\n",
+    "notes": "Wrapped in a typed error preserving the cause."
+  },
+  {
+    "id": "sem-hardcoded-secret",
+    "category": "wrong",
+    "engine": "semantic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-hardcoded-secrets",
+      "title": "No hardcoded credentials",
+      "scope": [
+        "src/**"
+      ],
+      "check": "semantic",
+      "rule": "API keys, tokens and passwords must come from configuration or the environment, never from a literal in source.",
+      "severity": "warn",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "API keys, tokens and passwords must come from configuration or the environment, never from a literal in source.",
+    "diff": "diff --git a/src/services/mailer.ts b/src/services/mailer.ts\n--- a/src/services/mailer.ts\n+++ b/src/services/mailer.ts\n@@ -1,4 +1,6 @@\n+const SENDGRID_KEY = 'SG.xK3nP9qLTmuY2vB8wR4dHa.5fJ0eC7iN1sV6oU3zQ8yM2pA4tX';\n+export const mailer = createMailer({ apiKey: SENDGRID_KEY });\n",
+    "notes": "A live-looking API key committed as a literal."
+  },
+  {
+    "id": "sem-secret-from-env",
+    "category": "correct",
+    "engine": "semantic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-hardcoded-secrets",
+      "title": "No hardcoded credentials",
+      "scope": [
+        "src/**"
+      ],
+      "check": "semantic",
+      "rule": "API keys, tokens and passwords must come from configuration or the environment, never from a literal in source.",
+      "severity": "warn",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "API keys, tokens and passwords must come from configuration or the environment, never from a literal in source.",
+    "diff": "diff --git a/src/services/mailer.ts b/src/services/mailer.ts\n--- a/src/services/mailer.ts\n+++ b/src/services/mailer.ts\n@@ -1,4 +1,6 @@\n+const SENDGRID_KEY = config.sendgridKey;\n+export const mailer = createMailer({ apiKey: SENDGRID_KEY });\n",
+    "notes": "Key comes from configuration."
+  },
+  {
+    "id": "sem-test-fixture-secret",
+    "category": "edge",
+    "engine": "semantic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-hardcoded-secrets",
+      "title": "No hardcoded credentials",
+      "scope": [
+        "src/**"
+      ],
+      "check": "semantic",
+      "rule": "API keys, tokens and passwords must come from configuration or the environment, never from a literal in source.",
+      "severity": "warn",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "API keys, tokens and passwords must come from configuration or the environment, never from a literal in source.",
+    "diff": "diff --git a/src/services/mailer.test.ts b/src/services/mailer.test.ts\n--- a/src/services/mailer.test.ts\n+++ b/src/services/mailer.test.ts\n@@ -1,4 +1,6 @@\n+const FAKE_KEY = 'test-key-000';\n+it(\"builds a mailer\", () => expect(createMailer({ apiKey: FAKE_KEY })).toBeDefined());\n",
+    "notes": "An obvious test placeholder, not a credential. Tests whether the model distinguishes a real secret from a fixture instead of pattern-matching on the word key."
+  },
+  {
+    "id": "sem-console-in-core",
+    "category": "wrong",
+    "engine": "semantic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "core-is-pure",
+      "title": "Core is pure logic",
+      "scope": [
+        "src/core/**"
+      ],
+      "check": "semantic",
+      "rule": "packages/core contains pure logic: no process.env, no network, no direct fs access, no console output. I/O belongs in apps/.",
+      "severity": "warn",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "packages/core contains pure logic: no process.env, no network, no direct fs access, no console output. I/O belongs in apps/.",
+    "diff": "diff --git a/src/core/pipeline.ts b/src/core/pipeline.ts\n--- a/src/core/pipeline.ts\n+++ b/src/core/pipeline.ts\n@@ -1,4 +1,8 @@\n+export function runPipeline(input: Input) {\n+  console.log(\"running pipeline\", input.id);\n+  return transform(input);\n+}\n",
+    "notes": "Console output inside the pure core."
+  },
+  {
+    "id": "sem-core-pure-refactor",
+    "category": "edge",
+    "engine": "semantic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "core-is-pure",
+      "title": "Core is pure logic",
+      "scope": [
+        "src/core/**"
+      ],
+      "check": "semantic",
+      "rule": "packages/core contains pure logic: no process.env, no network, no direct fs access, no console output. I/O belongs in apps/.",
+      "severity": "warn",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "packages/core contains pure logic: no process.env, no network, no direct fs access, no console output. I/O belongs in apps/.",
+    "diff": "diff --git a/src/core/pipeline.ts b/src/core/pipeline.ts\n--- a/src/core/pipeline.ts\n+++ b/src/core/pipeline.ts\n@@ -1,4 +1,11 @@\n-export function runPipeline(input: Input) {\n-  return transform(normalize(input));\n-}\n+export function runPipeline(input: Input): Output {\n+  const normalized = normalize(input);\n+  return transform(normalized);\n+}\n",
+    "notes": "A pure refactor with a large-looking diff and no rule impact. Guards against flagging churn."
+  },
+  {
+    "id": "sem-ai-generated-clean",
+    "category": "ai-generated",
+    "engine": "semantic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "controllers-delegate",
+      "title": "Controllers delegate business logic",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "semantic",
+      "rule": "Controllers may parse input, call exactly one service, and shape the response. Pricing, tax, discount and other business rules belong in the service layer.",
+      "severity": "warn",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Controllers may parse input, call exactly one service, and shape the response. Pricing, tax, discount and other business rules belong in the service layer.",
+    "diff": "diff --git a/src/api/InvoiceController.ts b/src/api/InvoiceController.ts\n--- a/src/api/InvoiceController.ts\n+++ b/src/api/InvoiceController.ts\n@@ -1,4 +1,12 @@\n+import { invoiceService } from '../application/invoiceService';\n+\n+export async function getInvoice(req: Request) {\n+  const id = new URL(req.url).searchParams.get(\"id\");\n+  if (!id) return new Response(\"missing id\", { status: 400 });\n+  const invoice = await invoiceService.byId(id);\n+  return invoice ? Response.json(invoice) : new Response(\"not found\", { status: 404 });\n+}\ndiff --git a/src/application/invoiceService.ts b/src/application/invoiceService.ts\n--- a/src/application/invoiceService.ts\n+++ b/src/application/invoiceService.ts\n@@ -1,4 +1,7 @@\n+export const invoiceService = {\n+  async byId(id: string) { return repo.findInvoice(id); },\n+};\n",
+    "notes": "A realistic two-file agent diff that respects the boundary. Input validation and status-code choice are controller concerns, not business rules."
+  },
+  {
+    "id": "sem-ai-generated-buried",
+    "category": "ai-generated",
+    "engine": "semantic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "controllers-delegate",
+      "title": "Controllers delegate business logic",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "semantic",
+      "rule": "Controllers may parse input, call exactly one service, and shape the response. Pricing, tax, discount and other business rules belong in the service layer.",
+      "severity": "warn",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Controllers may parse input, call exactly one service, and shape the response. Pricing, tax, discount and other business rules belong in the service layer.",
+    "diff": "diff --git a/src/api/types.ts b/src/api/types.ts\n--- a/src/api/types.ts\n+++ b/src/api/types.ts\n@@ -1,4 +1,5 @@\n+export interface InvoiceDto { id: string; total: number }\ndiff --git a/src/api/InvoiceController.ts b/src/api/InvoiceController.ts\n--- a/src/api/InvoiceController.ts\n+++ b/src/api/InvoiceController.ts\n@@ -1,4 +1,13 @@\n+import { invoiceService } from '../application/invoiceService';\n+\n+export async function getInvoice(req: Request) {\n+  const id = new URL(req.url).searchParams.get(\"id\");\n+  const invoice = await invoiceService.byId(id!);\n+  const lateFee = invoice.dueDate < Date.now() ? invoice.total * 0.015 : 0;\n+  const escalation = invoice.remindersSent > 3 ? lateFee * 2 : lateFee;\n+  return Response.json({ ...invoice, total: invoice.total + escalation });\n+}\ndiff --git a/src/api/routes.ts b/src/api/routes.ts\n--- a/src/api/routes.ts\n+++ b/src/api/routes.ts\n@@ -1,4 +1,5 @@\n+router.get(\"/invoice\", getInvoice);\n",
+    "notes": "Three-file agent diff where late-fee and escalation rules are buried in the middle file among plausible plumbing."
+  },
+  {
+    "id": "sem-violation-outside-diff",
+    "category": "edge",
+    "engine": "semantic",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "controllers-delegate",
+      "title": "Controllers delegate business logic",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "semantic",
+      "rule": "Controllers may parse input, call exactly one service, and shape the response. Pricing, tax, discount and other business rules belong in the service layer.",
+      "severity": "warn",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Controllers may parse input, call exactly one service, and shape the response. Pricing, tax, discount and other business rules belong in the service layer.",
+    "diff": "diff --git a/src/api/routes.ts b/src/api/routes.ts\n--- a/src/api/routes.ts\n+++ b/src/api/routes.ts\n@@ -1,4 +1,5 @@\n+router.post(\"/orders\", createOrder);\n",
+    "fixture": {
+      "src/api/routes.ts": "import { createOrder } from './OrderController';\n\nrouter.post(\"/orders\", createOrder);\n",
+      "src/api/OrderController.ts": "export async function createOrder(req: Request) {\n  const items = await req.json();\n  let subtotal = 0;\n  for (const it of items) subtotal += it.price * it.qty;\n  const tax = subtotal > 1000 ? subtotal * 0.08 : subtotal * 0.05;\n  return Response.json({ total: subtotal + tax });\n}\n"
+    },
+    "notes": "The diff only wires a route. The controller it points at already computes pricing inline and is in scope but untouched. Answering correctly requires pulling the referenced file into context — this is the case Phase 2 retrieval exists for."
+  }
+]

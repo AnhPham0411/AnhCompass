@@ -7,11 +7,17 @@ import { IntentFrontmatterSchema } from '@anhcompass/core';
 export const BenchCaseSchema = z.object({
   id: z.string().min(1),
   category: z.enum(['correct', 'wrong', 'edge', 'ai-generated']),
-  engine: z.enum(['deterministic', 'semantic']),
+  /** `graph` cases need a real file tree and only run once the graph engine
+   *  lands (Phase 1) — they are skipped, not failed, until then. */
+  engine: z.enum(['deterministic', 'semantic', 'graph']),
   expected: z.enum(['violation', 'pass']),
   intentFrontmatter: IntentFrontmatterSchema,
   intentBody: z.string().default(''),
   diff: z.string().min(1),
+  /** Repo files materialized into a temp root before the case runs, as
+   *  `relative/path.ts` → file content. Required for `graph`, optional for
+   *  `semantic` (without it the model only ever sees the diff). */
+  fixture: z.record(z.string(), z.string()).optional(),
   notes: z.string().default(''),
 });
 

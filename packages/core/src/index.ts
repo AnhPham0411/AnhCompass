@@ -53,3 +53,4 @@ export type { Baseline, BaselineDiff, BaselineEntryDiff } from './baseline/basel
 // Report
 export { renderTerminal, renderBaselineDiff } from './report/terminal.js';
 export { renderMarkdown } from './report/markdown.js';
+export { runDoctor, DoctorIssue } from './engine/doctor.js';

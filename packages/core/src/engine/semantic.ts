@@ -1,6 +1,7 @@
 import type { Intent, Verdict } from '../intent/schema.js';
-import type { ParsedDiff } from '@anhcompass/graph';
+import type { ParsedDiff, GraphProvider } from '@anhcompass/graph';
 import { readFilesMatchingGlobs } from '@anhcompass/graph';
+import micromatch from 'micromatch';
 import {
   LlmClient,
   CONFORMANCE_SYSTEM_PROMPT_V1,
@@ -13,8 +14,6 @@ import {
 } from '@anhcompass/llm';
 import { z } from 'zod';
 
-/** Tolerant of LLM output quirks: explicit nulls for optional fields,
- *  over-long excerpts. Exported for tests. */
 export const SemanticVerdictResponseSchema = z.object({
   status: z.enum(['pass', 'violation', 'uncertain']),
   confidence: z.number().min(0).max(1),
@@ -48,13 +47,32 @@ export interface SemanticCheckOpts {
   apiKey: string;
   checkedAtCommit: string;
   cacheKey: string;
+  provider?: GraphProvider;
+  useGraphRetrieval?: boolean;
 }
 
 export async function runSemanticCheck(opts: SemanticCheckOpts): Promise<Verdict> {
-  const { intent, diff, diffText, repoRoot, apiKey, checkedAtCommit } = opts;
+  const { intent, diff, diffText, repoRoot, apiKey, checkedAtCommit, provider, useGraphRetrieval } = opts;
 
-  // Gather context from files matching intent scope
-  const context = await readFilesMatchingGlobs(repoRoot, intent.frontmatter.scope, 6000);
+  let context: { snippets: Record<string, string>; estimatedTokens: number };
+
+  if (useGraphRetrieval && provider && provider.name.includes('graph') && provider.getQueryEngine) {
+    const query = await provider.getQueryEngine();
+    
+    // Find all neighbors within 2 hops of changed files
+    const changedFiles = diff.files.filter(f => query.data.nodes.includes(f));
+    const neighbors = query.neighbors(changedFiles, 2);
+    
+    // Prioritize neighbors that match intent scope
+    const scopeNeighbors = micromatch(neighbors, intent.frontmatter.scope);
+    const otherNeighbors = neighbors.filter(n => !scopeNeighbors.includes(n));
+    const rankedFiles = [...scopeNeighbors, ...otherNeighbors];
+
+    context = await readFilesMatchingGlobs(repoRoot, rankedFiles, 6000);
+  } else {
+    // Gather context from files matching intent scope
+    context = await readFilesMatchingGlobs(repoRoot, intent.frontmatter.scope, 6000);
+  }
 
   // Also include files in the diff
   const diffContext: Record<string, string> = {};
@@ -66,8 +84,6 @@ export async function runSemanticCheck(opts: SemanticCheckOpts): Promise<Verdict
   }
 
   const allContext = { ...context.snippets, ...diffContext };
-  // Estimate from what actually reaches the prompt (post-truncation),
-  // otherwise a huge diff gets routed to the expensive model for nothing
   const estimatedTokens =
     Math.min(context.estimatedTokens, CONTEXT_PROMPT_CHAR_LIMIT / 4) +
     Math.min(diffText.length, DIFF_PROMPT_CHAR_LIMIT) / 4;
@@ -96,7 +112,6 @@ export async function runSemanticCheck(opts: SemanticCheckOpts): Promise<Verdict
       model,
     });
   } catch (err) {
-    // LLM call failed — return uncertain
     await logLlmCall(repoRoot, {
       timestamp: new Date().toISOString(),
       intentId: intent.frontmatter.id,
@@ -126,7 +141,7 @@ export async function runSemanticCheck(opts: SemanticCheckOpts): Promise<Verdict
   await logLlmCall(repoRoot, {
     timestamp: new Date().toISOString(),
     intentId: intent.frontmatter.id,
-    model: callResult.model, // actual model (provider-mapped), not the routed name
+    model: callResult.model,
     promptHash: opts.cacheKey,
     inputTokens: usage.inputTokens,
     outputTokens: usage.outputTokens,
@@ -135,13 +150,12 @@ export async function runSemanticCheck(opts: SemanticCheckOpts): Promise<Verdict
     engine: 'semantic',
   });
 
-  // Rule 5: a verdict without evidence cannot carry `violation`
   const hasEvidence = result.evidence.length > 0;
   const status = result.status === 'violation' && !hasEvidence ? 'uncertain' : result.status;
   const suggestion =
     status === result.status
       ? (result.suggestion ?? undefined)
-      : 'Model reported a violation without evidence — downgraded to uncertain';
+      : 'Model reported a violation without evidence - downgraded to uncertain';
 
   return {
     intentId: intent.frontmatter.id,

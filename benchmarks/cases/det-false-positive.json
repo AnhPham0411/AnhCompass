@@ -1,0 +1,560 @@
+[
+  {
+    "id": "det-fp-line-comment",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,6 @@\n+// import _ from 'lodash';\n+export const x = 1;\n",
+    "notes": "Commented-out import is not a dependency. Text matching reports this."
+  },
+  {
+    "id": "det-fp-block-comment",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,6 @@\n+/* import _ from 'lodash'; */\n+export const x = 1;\n",
+    "notes": "Block comment."
+  },
+  {
+    "id": "det-fp-jsdoc-example",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,7 @@\n+/**\n+ * @example import { chunk } from 'lodash';\n+ */\n",
+    "notes": "JSDoc example block."
+  },
+  {
+    "id": "det-fp-string-literal",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/codegen.ts b/src/codegen.ts\n--- a/src/codegen.ts\n+++ b/src/codegen.ts\n@@ -1,4 +1,5 @@\n+const header = \"import _ from 'lodash';\";\n",
+    "notes": "A string literal containing import syntax — a codegen template, not a dependency."
+  },
+  {
+    "id": "det-fp-template-literal",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/codegen.ts b/src/codegen.ts\n--- a/src/codegen.ts\n+++ b/src/codegen.ts\n@@ -1,4 +1,5 @@\n+const snippet = `require('lodash')`;\n",
+    "notes": "Template literal containing require syntax."
+  },
+  {
+    "id": "det-fp-test-assertion",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/codegen.test.ts b/src/codegen.test.ts\n--- a/src/codegen.test.ts\n+++ b/src/codegen.test.ts\n@@ -1,4 +1,5 @@\n+expect(output).toContain(\"import _ from 'lodash'\");\n",
+    "notes": "Test asserting on generated source text."
+  },
+  {
+    "id": "det-fp-commented-require",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/legacy.cjs b/src/legacy.cjs\n--- a/src/legacy.cjs\n+++ b/src/legacy.cjs\n@@ -1,4 +1,5 @@\n+// const _ = require('lodash');\n",
+    "notes": "Commented-out require."
+  },
+  {
+    "id": "det-fp-markdown-fence",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/docs/migration.md b/src/docs/migration.md\n--- a/src/docs/migration.md\n+++ b/src/docs/migration.md\n@@ -1,4 +1,8 @@\n+Before:\n+```ts\n+import _ from 'lodash';\n+```\n",
+    "notes": "Documentation showing the old pattern. Markdown inside scope must not be parsed as code."
+  },
+  {
+    "id": "det-fp-url-in-comment",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,5 @@\n+// see https://lodash.com/docs#chunk for the original semantics\n",
+    "notes": "Package name in a URL inside a comment."
+  },
+  {
+    "id": "det-fp-similar-prefix",
+    "category": "correct",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,5 @@\n+import { chunk } from 'lodash-es';\n",
+    "notes": "lodash-es is a different package from lodash."
+  },
+  {
+    "id": "det-fp-similar-suffix",
+    "category": "correct",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,5 @@\n+import x from 'not-lodash';\n",
+    "notes": "Package whose name merely contains the forbidden name."
+  },
+  {
+    "id": "det-fp-identifier-name",
+    "category": "correct",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/compat.ts b/src/compat.ts\n--- a/src/compat.ts\n+++ b/src/compat.ts\n@@ -1,4 +1,5 @@\n+const lodashCompat = createCompatLayer();\n",
+    "notes": "Forbidden name appearing as an identifier."
+  },
+  {
+    "id": "det-fp-eslint-directive",
+    "category": "correct",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,6 @@\n+// eslint-disable-next-line import/no-extraneous-dependencies\n+export const x = 1;\n",
+    "notes": "A lint directive mentioning import must not trigger."
+  },
+  {
+    "id": "det-fp-removed-import",
+    "category": "correct",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,6 @@\n-import _ from 'lodash';\n+export function chunk() {}\n",
+    "notes": "The diff REMOVES the forbidden import — this is the fix, not the violation."
+  },
+  {
+    "id": "det-fp-package-json-dep",
+    "category": "edge",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/pkg/package.json b/src/pkg/package.json\n--- a/src/pkg/package.json\n+++ b/src/pkg/package.json\n@@ -1,4 +1,5 @@\n+    \"lodash\": \"^4.17.21\",\n",
+    "notes": "A manifest dependency entry is not an import statement. Whether the package may be declared at all is a different rule."
+  },
+  {
+    "id": "det-fp-string-constant",
+    "category": "correct",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-stripe",
+      "title": "API layer must not depend on the Stripe SDK",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "The API layer must reach Stripe only through a payment service. No dependency on the stripe SDK, at any depth.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "stripe"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The API layer must reach Stripe only through a payment service. No dependency on the stripe SDK, at any depth.",
+    "diff": "diff --git a/src/api/config.ts b/src/api/config.ts\n--- a/src/api/config.ts\n+++ b/src/api/config.ts\n@@ -1,4 +1,5 @@\n+const PROVIDER = 'stripe';\n",
+    "notes": "The forbidden name as a plain string value."
+  },
+  {
+    "id": "det-fp-prose-comment",
+    "category": "correct",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "api-no-stripe",
+      "title": "API layer must not depend on the Stripe SDK",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "The API layer must reach Stripe only through a payment service. No dependency on the stripe SDK, at any depth.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "stripe"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "The API layer must reach Stripe only through a payment service. No dependency on the stripe SDK, at any depth.",
+    "diff": "diff --git a/src/api/payments.ts b/src/api/payments.ts\n--- a/src/api/payments.ts\n+++ b/src/api/payments.ts\n@@ -1,4 +1,5 @@\n+// TODO: move the stripe webhook handler into the service layer\n",
+    "notes": "Prose mentioning the forbidden package."
+  },
+  {
+    "id": "det-fp-import-word-in-prose",
+    "category": "correct",
+    "engine": "deterministic",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "No direct lodash imports",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-08-31"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/utils.ts b/src/utils.ts\n--- a/src/utils.ts\n+++ b/src/utils.ts\n@@ -1,4 +1,5 @@\n+// We used to import lodash here; it is gone now.\n",
+    "notes": "Both keywords present in prose, no quotes, no dependency."
+  }
+]

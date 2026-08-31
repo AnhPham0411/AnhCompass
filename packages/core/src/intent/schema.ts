@@ -7,11 +7,23 @@ export const IntentAnchorSchema = z.discriminatedUnion('type', [
 
 export type IntentAnchor = z.infer<typeof IntentAnchorSchema>;
 
-export const DeterministicRuleSchema = z.object({
-  kind: z.enum(['no-import']),
-  from: z.array(z.string().min(1)),
-  to: z.array(z.string().min(1)),
-});
+export const DeterministicRuleSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('no-import'),
+    from: z.array(z.string().min(1)),
+    to: z.array(z.string().min(1)),
+  }),
+  z.object({
+    kind: z.literal('no-cycle'),
+    from: z.array(z.string().min(1)).optional(),
+  }),
+  z.object({
+    kind: z.literal('layer-boundary'),
+    layers: z.record(z.array(z.string().min(1))),
+    allow: z.array(z.string()).optional(),
+    deny: z.array(z.string()).optional(),
+  })
+]);
 
 export type DeterministicRule = z.infer<typeof DeterministicRuleSchema>;
 
@@ -35,11 +47,22 @@ export const IntentFrontmatterSchema = z.object({
     z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'created must be YYYY-MM-DD'),
   ),
   verified_at_commit: z.string().optional(),
+  supersedes: z.array(z.string()).optional(),
+  conflicts_with: z.array(z.string()).optional(),
+  review_after: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'review_after must be YYYY-MM-DD').optional(),
+  exceptions: z.array(
+    z.object({
+      path: z.string(),
+      reason: z.string(),
+      expires: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expires must be YYYY-MM-DD'),
+      approved_by: z.string()
+    })
+  ).optional(),
 });
 
 export type IntentFrontmatter = z.infer<typeof IntentFrontmatterSchema>;
 
-/** Parsed intent — frontmatter + body markdown + source path */
+/** Parsed intent - frontmatter + body markdown + source path */
 export interface Intent {
   frontmatter: IntentFrontmatter;
   body: string;
@@ -47,8 +70,8 @@ export interface Intent {
 }
 
 /** How a violation should be enforced in CI.
- *  `block` — fail the pipeline. Only deterministic evidence can block.
- *  `warn`  — surface but never fail. All LLM (semantic) verdicts are warn-only. */
+ *  `block` - fail the pipeline. Only deterministic evidence can block.
+ *  `warn`  - surface but never fail. All LLM (semantic) verdicts are warn-only. */
 export const EnforcementSchema = z.enum(['block', 'warn']);
 export type Enforcement = z.infer<typeof EnforcementSchema>;
 
@@ -67,8 +90,9 @@ export const VerdictSchema = z.object({
   suggestion: z.string().optional(),
   checkedAtCommit: z.string(),
   engine: z.enum(['deterministic', 'semantic']),
-  /** Set on violations only. Resolved by the pipeline — see resolveEnforcement. */
+  /** Set on violations only. Resolved by the pipeline - see resolveEnforcement. */
   enforcement: EnforcementSchema.optional(),
 });
 
 export type Verdict = z.infer<typeof VerdictSchema>;
+

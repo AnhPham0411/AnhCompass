@@ -22,11 +22,19 @@ export interface AnchorResolution {
 export interface CodeContext {
   /** Approximate token count */
   estimatedTokens: number;
-  /** Map of file path → relevant snippet */
+  /** Map of file path   relevant snippet */
   snippets: Record<string, string>;
 }
 
-/** The core adapter interface — all graph backends implement this */
+export interface GraphQueryEngine {
+  data: { nodes: string[] };
+  reachable(fromNode: string, toNode: string): boolean;
+  paths(fromNode: string, toNode: string, maxHops?: number): string[][];
+  cycles(nodes?: string[]): string[][];
+  neighbors(nodes: string[], maxHops?: number): string[];
+}
+
+/** The core adapter interface - all graph backends implement this */
 export interface GraphProvider {
   readonly name: string;
   /** Is this backend available and indexed for this repo? */
@@ -37,4 +45,7 @@ export interface GraphProvider {
   resolveAnchor(anchor: { type: 'symbol' | 'path'; value: string }): Promise<AnchorResolution>;
   /** Get source snippets for semantic check (budget in tokens) */
   contextFor(symbols: SymbolRef[], budgetTokens: number): Promise<CodeContext>;
+  /** Get query engine if supported */
+  getQueryEngine?(): Promise<GraphQueryEngine>;
 }
+

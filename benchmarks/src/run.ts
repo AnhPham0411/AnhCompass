@@ -3,6 +3,7 @@
  *  Usage:
  *    pnpm bench                 # deterministic cases only (free, offline)
  *    pnpm bench -- --semantic   # also run semantic cases (needs an LLM API key)
+ *    pnpm bench -- --graph      # also run graph cases (needs the graph engine, Phase 1)
  *    pnpm bench -- --only <id>  # run a single case by id
  *
  *  Outputs a console summary and writes results/report.{json,md}.
@@ -18,7 +19,7 @@ import {
   type Intent,
   type Verdict,
 } from '@anhcompass/core';
-import { resolveLlmApiKey } from '@anhcompass/llm';
+import { detectProvider, TsGraphProvider } from '@anhcompass/graph'; import { resolveLlmApiKey } from '@anhcompass/llm';
 import { BenchCaseFileSchema, type BenchCase } from './case-schema.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -91,20 +92,36 @@ function classify(c: BenchCase, verdict: Verdict): { outcome: CaseResult['outcom
   return { outcome: predictedViolation ? 'FP' : 'TN', uncertain };
 }
 
+/** Write a case's fixture into its own root so the engine sees a real file
+ *  tree. Without a fixture the case root stays empty and only the diff is seen. */
+async function materializeFixture(root: string, c: BenchCase): Promise<string> {
+  if (!c.fixture) return root;
+  const caseRoot = join(root, c.id);
+  for (const [rel, content] of Object.entries(c.fixture)) {
+    const target = join(caseRoot, rel);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, content, 'utf-8');
+  }
+  return caseRoot;
+}
+
 async function runCase(c: BenchCase, semanticRoot: string, apiKey?: string): Promise<CaseResult> {
   const intent = toIntent(c);
   const diff = parseDiff(c.diff);
+  const caseRoot = await materializeFixture(semanticRoot, c);
   const start = Date.now();
 
   let verdict: Verdict;
   if (c.engine === 'deterministic') {
     verdict = (await runDeterministicCheck(intent, diff, 'bench')).verdict;
+  } else if (c.engine === 'graph') { verdict = (await runDeterministicCheck(intent, diff, 'bench', new TsGraphProvider(caseRoot), caseRoot)).verdict;
+    // throw new Error(`graph engine not implemented yet (case ${c.id}) — Phase 1`);
   } else {
     verdict = await runSemanticCheck({
       intent,
       diff,
       diffText: c.diff,
-      repoRoot: semanticRoot,
+      repoRoot: caseRoot,
       apiKey: apiKey!,
       checkedAtCommit: 'bench',
       cacheKey: `bench-${c.id}`,
@@ -223,6 +240,7 @@ function metricsTable(byKey: Record<string, EngineMetrics>): string {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const runSemantic = args.includes('--semantic');
+  const runGraph = args.includes('--graph');
   const onlyIdx = args.indexOf('--only');
   const onlyId = onlyIdx >= 0 ? args[onlyIdx + 1] : undefined;
 
@@ -231,6 +249,11 @@ async function main(): Promise<void> {
 
   const detCases = cases.filter((c) => c.engine === 'deterministic');
   let semCases = cases.filter((c) => c.engine === 'semantic');
+  const graphCases = cases.filter((c) => c.engine === 'graph');
+  if (runGraph && graphCases.length > 0) {
+    console.error('--graph requires the graph engine (Phase 1) — not implemented yet');
+    process.exit(1);
+  }
 
   const apiKey = resolveLlmApiKey(process.env);
   if (runSemantic && !apiKey) {
@@ -239,13 +262,19 @@ async function main(): Promise<void> {
   }
   if (!runSemantic) semCases = [];
 
-  console.log(`Loaded ${cases.length} case(s) — running ${detCases.length} deterministic, ${semCases.length} semantic\n`);
+  console.log(
+    `Loaded ${cases.length} case(s) — running ${detCases.length} deterministic, ${semCases.length} semantic`,
+  );
+  if (graphCases.length > 0) {
+    console.log(`${graphCases.length} graph case(s) pending the graph engine (Phase 1) — skipped`);
+  }
+  console.log('');
 
   const semanticRoot = await mkdtemp(join(tmpdir(), 'anhcompass-bench-'));
   try {
     const detResults = await pool(detCases, 16, (c) => runCase(c, semanticRoot));
     const semResults = await pool(semCases, SEMANTIC_CONCURRENCY, (c) => runCase(c, semanticRoot, apiKey));
-    const all = [...detResults, ...semResults];
+    const graphResults = await pool(graphCases, 16, (c) => runCase(c, semanticRoot)); const all = [...detResults, ...semResults, ...graphResults];
 
     const slices: Record<string, EngineMetrics> = {};
     if (detResults.length > 0) slices['deterministic (all)'] = computeMetrics(detResults);
@@ -280,7 +309,12 @@ async function main(): Promise<void> {
     await mkdir(RESULTS_DIR, { recursive: true });
     const report = {
       generatedAt: new Date().toISOString(),
-      totals: { cases: all.length, deterministic: detResults.length, semantic: semResults.length },
+      totals: {
+        cases: all.length,
+        deterministic: detResults.length,
+        semantic: semResults.length,
+        graphPending: graphCases.length,
+      },
       slices,
       cost,
       failures: failures.map((f) => ({
@@ -315,3 +349,4 @@ main().catch((err: unknown) => {
   console.error(err);
   process.exit(1);
 });
+
