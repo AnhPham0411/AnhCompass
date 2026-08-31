@@ -188,6 +188,25 @@ describe('runDeterministicCheck', () => {
       expect(result.verdict.status).toBe('pass');
     });
 
+    it('returns uncertain when the graph holds no file the rule can see', async () => {
+      const intent = makeIntent({
+        deterministic: { kind: 'no-cycle', from: ['src/**'] },
+      });
+      const diff = makeDiff('src/api/order.ts', ['export const a = 1;']);
+      const result = await runDeterministicCheck(
+        intent,
+        diff,
+        COMMIT,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        emptyGraphProvider as any,
+        '/tmp/x',
+      );
+      // An index that covers none of the rule's files has checked nothing —
+      // reporting pass would be a green light nobody earned.
+      expect(result.verdict.status).toBe('uncertain');
+      expect(result.verdict.suggestion).toMatch(/no files matching this rule/i);
+    });
+
     it('returns uncertain — not pass — for a rule no available engine can evaluate', async () => {
       const intent = makeIntent({
         deterministic: { kind: 'no-cycle', from: ['src/**'] },

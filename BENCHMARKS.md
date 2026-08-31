@@ -245,6 +245,42 @@ that drives the built server over stdio rather than testing the functions behind
 | `check_plan` | Implemented: reviews a plan against the active rules before code exists, quoting the sentence that would breach one. Advisory by construction — a plan cannot violate anything yet, so nothing here blocks |
 | `explain_violation` | Implemented: the rule, why it exists, the evidence, the fix, and the waiver syntax. Given a diff it cannot parse it now says so, rather than reporting `pass` on input nobody read |
 
+## Outside evidence — dependency-cruiser, 2026-09-01
+
+Everything above is self-graded: a corpus written by the same hand that wrote the engines,
+on repositories built for the test. The obvious way that fails is a shared blind spot, and
+it already has — twice, the corpus read 100% while the product answered `pass` on a
+violating repository.
+
+So: a real project, and rules nobody here wrote. `sverweij/dependency-cruiser` ships
+`.dependency-cruiser.mjs`, twenty architectural rules its maintainer actually enforces.
+Two were transcribed verbatim into intents — `restrict-fs-access`, with its list of eleven
+exempt paths, and `cli-to-main-only` — and run against the project's own history.
+
+| Input | Result |
+|---|---|
+| Real diff, `HEAD~40` (270 files, +10,869 / −13,251) | 2 pass, **0 false positives** |
+| Real diffs, `HEAD~25` and `HEAD~10` | 2 pass each, **0 false positives** |
+| `import fs from "fs"` planted in `src/report/` | caught |
+| `src/cli/` importing `src/extract/` planted | caught |
+
+That is the first false-positive measurement on legitimate work this project has, and the
+first check of any kind against rules it did not author.
+
+It also found the bug the corpus could not. `cli-to-main-only` first reported **pass with
+the violation sitting in front of it**: the graph indexer read `.ts/.tsx/.js/.jsx` while
+dependency-cruiser is written in `.mjs`, so the layer rule was evaluated against an index
+that contained none of the files it governs. The graph was not empty — 584 nodes — just
+empty of anything relevant, which is why nothing looked wrong.
+
+Third instance of one failure: an engine that cannot see its input reporting a confident
+green light. Fixed twice at the cause (the indexer now matches the scanner's file
+coverage) and once at the principle: a rule only the graph can answer, over an index
+holding none of its files, now returns `uncertain`.
+
+**What this evidence is not.** One repository, two rules, three diffs. It shows the tool
+does not cry wolf on one real codebase; it says nothing about how it behaves on a hundred.
+
 ## What each phase must move
 
 | Phase | Target | Status |

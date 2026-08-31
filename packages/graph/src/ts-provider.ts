@@ -54,7 +54,10 @@ export class TsGraphProvider implements GraphProvider {
           await walk(full);
         } else if (s.isFile()) {
           const ext = entry.slice(entry.lastIndexOf('.'));
-          if (['.ts', '.tsx', '.js', '.jsx'].includes(ext)) {
+          // Must match the lexical scanner's coverage. When the two engines
+          // disagree about which files exist, the graph silently answers pass
+          // for a language it cannot see.
+          if (['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.mts', '.cts'].includes(ext)) {
             allFiles.push(relative(this.repoRoot, full).replace(/\\/g, '/'));
           }
         }

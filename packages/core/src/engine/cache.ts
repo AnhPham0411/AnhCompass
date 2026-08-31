@@ -37,8 +37,10 @@ export async function setCachedVerdict(
  *  checker; serving it after the checker changed is serving a stale answer
  *  with full confidence.
  *
- *  2 — layer-boundary began following paths through unlayered modules. */
-export const ENGINE_VERSION = 2;
+ *  2 — layer-boundary began following paths through unlayered modules.
+ *  3 — the graph indexer covers .mjs/.cjs/.mts/.cts, and a graph-only rule over
+ *      an empty index reports uncertain rather than pass. */
+export const ENGINE_VERSION = 3;
 
 /** Build cache key from intent content + relevant diff hunks.
  *  sha256 — a 32-bit hash collision would silently serve another intent's verdict. */

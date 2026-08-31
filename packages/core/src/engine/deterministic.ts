@@ -15,6 +15,24 @@ type NoImportRule = Extract<DeterministicRule, { kind: 'no-import' }>;
  *  past a layered file can still be missed. */
 const LAYER_MAX_HOPS = 6;
 
+/** Named in the message a user sees when the index turns out to be empty. */
+const INDEXED_EXTENSIONS = '.ts, .tsx, .js, .jsx, .mjs, .cjs, .mts and .cts';
+
+/** How many indexed files a graph-only rule can actually see. Zero means the
+ *  rule was never evaluated, whatever the search returns. */
+function graphCoverage(rule: DeterministicRule, query: GraphQuery): number {
+  if (rule.kind === 'no-cycle') {
+    return micromatch(query.data.nodes, rule.from ?? ['**/*']).length;
+  }
+  if (rule.kind === 'layer-boundary') {
+    return Object.values(rule.layers).reduce(
+      (total, patterns) => total + micromatch(query.data.nodes, patterns).length,
+      0,
+    );
+  }
+  return query.data.nodes.length;
+}
+
 /** Minimal shape this module needs from the graph backend. */
 interface GraphQuery {
   data: { nodes: string[] };
@@ -69,6 +87,22 @@ export async function runDeterministicCheck(
   const query = await openQuery(provider, repoRoot);
 
   if (query) {
+    // A rule only the graph can answer, over files the index does not contain,
+    // has not been checked. Reporting `pass` there is the same silent green
+    // light as having no engine at all.
+    if (rule.kind !== 'no-import' && graphCoverage(rule, query) === 0) {
+      return {
+        verdict: {
+          intentId,
+          status: 'uncertain',
+          confidence: 0,
+          evidence: [],
+          suggestion: `The dependency graph holds no files matching this rule, so nothing was checked. The indexer reads ${INDEXED_EXTENSIONS}.`,
+          checkedAtCommit,
+          engine: 'deterministic',
+        },
+      };
+    }
     evidence.push(...graphEvidence(rule, diff, query, reportedEdges, waivedEdges));
   } else if (rule.kind !== 'no-import') {
     // Only the graph engine can evaluate this rule. Reporting `pass` would
