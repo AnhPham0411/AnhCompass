@@ -19,7 +19,7 @@ import {
   type Intent,
   type Verdict,
 } from '@anhcompass/core';
-import { detectProvider, TsGraphProvider } from '@anhcompass/graph'; import { resolveLlmApiKey } from '@anhcompass/llm';
+import { TsGraphProvider } from '@anhcompass/graph'; import { resolveLlmApiKey } from '@anhcompass/llm';
 import { BenchCaseFileSchema, type BenchCase } from './case-schema.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -33,6 +33,12 @@ interface CaseResult {
   latencyMs: number;
   outcome: 'TP' | 'TN' | 'FP' | 'FN';
   uncertain: boolean;
+  /** Set when the case was re-run under a non-default engine configuration */
+  variant?: string;
+  /** False for arms that exist only as a comparison baseline: they are
+   *  measured and reported, but a known-worse baseline losing is the expected
+   *  result, not a broken build. */
+  gating?: boolean;
 }
 
 interface EngineMetrics {
@@ -92,12 +98,17 @@ function classify(c: BenchCase, verdict: Verdict): { outcome: CaseResult['outcom
   return { outcome: predictedViolation ? 'FP' : 'TN', uncertain };
 }
 
-/** Write a case's fixture into its own root so the engine sees a real file
- *  tree. Without a fixture the case root stays empty and only the diff is seen. */
-async function materializeFixture(root: string, c: BenchCase): Promise<string> {
-  if (!c.fixture) return root;
-  const caseRoot = join(root, c.id);
-  for (const [rel, content] of Object.entries(c.fixture)) {
+/** Every case gets its own root under a per-arm namespace. Isolation matters
+ *  twice over: one case's fixture must not appear in another's retrieved
+ *  context, and each arm's LLM log has to be attributable to that arm alone. */
+async function materializeCaseRoot(
+  benchRoot: string,
+  c: BenchCase,
+  namespace: string,
+): Promise<string> {
+  const caseRoot = join(benchRoot, namespace, c.id);
+  await mkdir(caseRoot, { recursive: true });
+  for (const [rel, content] of Object.entries(c.fixture ?? {})) {
     const target = join(caseRoot, rel);
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, content, 'utf-8');
@@ -105,31 +116,85 @@ async function materializeFixture(root: string, c: BenchCase): Promise<string> {
   return caseRoot;
 }
 
-async function runCase(c: BenchCase, semanticRoot: string, apiKey?: string): Promise<CaseResult> {
+interface RunOpts {
+  namespace: string;
+  apiKey?: string;
+  model?: string;
+  useGraphRetrieval?: boolean;
+  variant?: string;
+  gating?: boolean;
+}
+
+async function runCase(c: BenchCase, benchRoot: string, o: RunOpts): Promise<CaseResult> {
   const intent = toIntent(c);
   const diff = parseDiff(c.diff);
-  const caseRoot = await materializeFixture(semanticRoot, c);
+  const caseRoot = await materializeCaseRoot(benchRoot, c, o.namespace);
   const start = Date.now();
 
   let verdict: Verdict;
   if (c.engine === 'deterministic') {
     verdict = (await runDeterministicCheck(intent, diff, 'bench')).verdict;
-  } else if (c.engine === 'graph') { verdict = (await runDeterministicCheck(intent, diff, 'bench', new TsGraphProvider(caseRoot), caseRoot)).verdict;
-    // throw new Error(`graph engine not implemented yet (case ${c.id}) — Phase 1`);
+  } else if (c.engine === 'graph') {
+    verdict = (
+      await runDeterministicCheck(intent, diff, 'bench', new TsGraphProvider(caseRoot), caseRoot)
+    ).verdict;
   } else {
     verdict = await runSemanticCheck({
       intent,
       diff,
       diffText: c.diff,
       repoRoot: caseRoot,
-      apiKey: apiKey!,
+      apiKey: o.apiKey!,
       checkedAtCommit: 'bench',
       cacheKey: `bench-${c.id}`,
+      model: o.model,
+      provider: o.useGraphRetrieval ? new TsGraphProvider(caseRoot) : undefined,
+      useGraphRetrieval: o.useGraphRetrieval ?? false,
     });
   }
 
   const latencyMs = Date.now() - start;
-  return { case: c, verdict, latencyMs, ...classify(c, verdict) };
+  return {
+    case: c,
+    verdict,
+    latencyMs,
+    variant: o.variant,
+    gating: o.gating,
+    ...classify(c, verdict),
+  };
+}
+
+/** Re-runs a deterministic case with a graph provider attached.
+ *
+ *  This is the configuration the CLI actually uses on any repository holding a
+ *  package.json or tsconfig.json, so the labels must hold here too. Without
+ *  this pass the corpus measures a code path real users never reach: a graph
+ *  backend that indexes only TS/JS silently swallowed every Python violation,
+ *  and every suppression comment, and the corpus reported 100%. */
+async function runDeterministicWithProvider(c: BenchCase, benchRoot: string): Promise<CaseResult> {
+  const intent = toIntent(c);
+  const diff = parseDiff(c.diff);
+  // isolated root — one case's fixture must not leak into another's graph
+  const caseRoot = join(benchRoot, '__with_provider__', c.id);
+  await mkdir(caseRoot, { recursive: true });
+  for (const [rel, content] of Object.entries(c.fixture ?? {})) {
+    const target = join(caseRoot, rel);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, content, 'utf-8');
+  }
+
+  const start = Date.now();
+  const verdict = (
+    await runDeterministicCheck(intent, diff, 'bench', new TsGraphProvider(caseRoot), caseRoot)
+  ).verdict;
+
+  return {
+    case: c,
+    verdict,
+    latencyMs: Date.now() - start,
+    variant: 'with graph provider',
+    ...classify(c, verdict),
+  };
 }
 
 async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Promise<R[]> {
@@ -196,11 +261,27 @@ const PRICES_PER_MTOK: Record<string, { in: number; out: number }> = {
   'gemini-1.5-flash': { in: 0.075, out: 0.3 },
 };
 
-async function readLlmCost(semanticRoot: string): Promise<LlmCost> {
+/** Sums every log under the bench root. Cases carrying a fixture run in their
+ *  own root and write their own log — reading only the top-level one
+ *  under-reports spend. */
+async function readLlmCost(benchRoot: string): Promise<LlmCost> {
   const cost: LlmCost = { calls: 0, inputTokens: 0, outputTokens: 0, usd: 0 };
+
+  let entries: string[] = [];
   try {
-    const raw = await readFile(join(semanticRoot, '.agent', 'cache', 'llm-log.jsonl'), 'utf-8');
-    for (const line of raw.trim().split('\n')) {
+    entries = await readdir(benchRoot, { recursive: true });
+  } catch {
+    return cost;
+  }
+
+  for (const rel of entries.filter((e) => e.endsWith('llm-log.jsonl'))) {
+    let raw: string;
+    try {
+      raw = await readFile(join(benchRoot, rel), 'utf-8');
+    } catch {
+      continue;
+    }
+    for (const line of raw.trim().split('\n').filter(Boolean)) {
       const entry = JSON.parse(line) as {
         model: string;
         inputTokens: number;
@@ -214,9 +295,8 @@ async function readLlmCost(semanticRoot: string): Promise<LlmCost> {
         cost.usd += (entry.inputTokens * price.in + entry.outputTokens * price.out) / 1e6;
       }
     }
-  } catch {
-    // no semantic calls made
   }
+
   return cost;
 }
 
@@ -243,17 +323,18 @@ async function main(): Promise<void> {
   const runGraph = args.includes('--graph');
   const onlyIdx = args.indexOf('--only');
   const onlyId = onlyIdx >= 0 ? args[onlyIdx + 1] : undefined;
+  const modelIdx = args.indexOf('--model');
+  const model = modelIdx >= 0 ? args[modelIdx + 1] : undefined;
+  const compareRetrieval = args.includes('--compare-retrieval');
 
   let cases = await loadCases();
   if (onlyId) cases = cases.filter((c) => c.id === onlyId);
 
   const detCases = cases.filter((c) => c.engine === 'deterministic');
   let semCases = cases.filter((c) => c.engine === 'semantic');
-  const graphCases = cases.filter((c) => c.engine === 'graph');
-  if (runGraph && graphCases.length > 0) {
-    console.error('--graph requires the graph engine (Phase 1) — not implemented yet');
-    process.exit(1);
-  }
+  let graphCases = cases.filter((c) => c.engine === 'graph');
+  const skippedGraph = runGraph ? 0 : graphCases.length;
+  if (!runGraph) graphCases = [];
 
   const apiKey = resolveLlmApiKey(process.env);
   if (runSemantic && !apiKey) {
@@ -263,31 +344,81 @@ async function main(): Promise<void> {
   if (!runSemantic) semCases = [];
 
   console.log(
-    `Loaded ${cases.length} case(s) — running ${detCases.length} deterministic, ${semCases.length} semantic`,
+    `Loaded ${cases.length} case(s) — running ${detCases.length} deterministic, ${graphCases.length} graph, ${semCases.length} semantic`,
   );
-  if (graphCases.length > 0) {
-    console.log(`${graphCases.length} graph case(s) pending the graph engine (Phase 1) — skipped`);
+  if (skippedGraph > 0) {
+    console.log(`${skippedGraph} graph case(s) skipped — pass --graph to run them`);
   }
   console.log('');
 
   const semanticRoot = await mkdtemp(join(tmpdir(), 'anhcompass-bench-'));
   try {
-    const detResults = await pool(detCases, 16, (c) => runCase(c, semanticRoot));
-    const semResults = await pool(semCases, SEMANTIC_CONCURRENCY, (c) => runCase(c, semanticRoot, apiKey));
-    const graphResults = await pool(graphCases, 16, (c) => runCase(c, semanticRoot)); const all = [...detResults, ...semResults, ...graphResults];
+    const detResults = await pool(detCases, 16, (c) =>
+      runCase(c, semanticRoot, { namespace: 'det' }),
+    );
+    // The default arm mirrors the product default: graph-neighbourhood retrieval
+    const semResults = await pool(semCases, SEMANTIC_CONCURRENCY, (c) =>
+      runCase(c, semanticRoot, { namespace: 'sem-graph', apiKey, model, useGraphRetrieval: true }),
+    );
+    // Phase 2 comparison arm: the same cases retrieved by walking directories
+    const semGlobResults = compareRetrieval
+      ? await pool(semCases, SEMANTIC_CONCURRENCY, (c) =>
+          runCase(c, semanticRoot, {
+            namespace: 'sem-glob',
+            apiKey,
+            model,
+            useGraphRetrieval: false,
+            variant: 'glob-walk retrieval',
+            gating: false,
+          }),
+        )
+      : [];
+    // graph cases index a real file tree per case — keep concurrency modest
+    const graphResults = await pool(graphCases, 4, (c) =>
+      runCase(c, semanticRoot, { namespace: 'graph' }),
+    );
+    // Same cases, the engine configuration the CLI actually uses
+    const dualResults = await pool(detCases, 4, (c) =>
+      runDeterministicWithProvider(c, semanticRoot),
+    );
+    const all = [
+      ...detResults,
+      ...semResults,
+      ...semGlobResults,
+      ...graphResults,
+      ...dualResults,
+    ];
 
     const slices: Record<string, EngineMetrics> = {};
     if (detResults.length > 0) slices['deterministic (all)'] = computeMetrics(detResults);
-    if (semResults.length > 0) slices['semantic (all)'] = computeMetrics(semResults);
-    for (const engine of ['deterministic', 'semantic'] as const) {
+    if (dualResults.length > 0) {
+      slices['deterministic + graph provider'] = computeMetrics(dualResults);
+    }
+    if (graphResults.length > 0) slices['graph (all)'] = computeMetrics(graphResults);
+    if (semResults.length > 0) {
+      slices[compareRetrieval ? 'semantic / graph retrieval (default)' : 'semantic (all)'] =
+        computeMetrics(semResults);
+    }
+    if (semGlobResults.length > 0) {
+      slices['semantic / glob-walk retrieval'] = computeMetrics(semGlobResults);
+    }
+    for (const engine of ['deterministic', 'graph', 'semantic'] as const) {
       for (const cat of ['correct', 'wrong', 'edge', 'ai-generated'] as const) {
-        const slice = all.filter((r) => r.case.engine === engine && r.case.category === cat);
+        const slice = all.filter(
+          (r) => !r.variant && r.case.engine === engine && r.case.category === cat,
+        );
         if (slice.length > 0) slices[`${engine} / ${cat}`] = computeMetrics(slice);
       }
     }
 
     const failures = all.filter((r) => r.outcome === 'FP' || r.outcome === 'FN');
     const cost = await readLlmCost(semanticRoot);
+    const retrievalCost = compareRetrieval
+      ? {
+          glob: await readLlmCost(join(semanticRoot, 'sem-glob')),
+          graph: await readLlmCost(join(semanticRoot, 'sem-graph')),
+        }
+      : null;
 
     const table = metricsTable(slices);
     console.log(table);
@@ -297,11 +428,25 @@ async function main(): Promise<void> {
         `LLM: ${cost.calls} calls · ${cost.inputTokens} in / ${cost.outputTokens} out tokens · $${cost.usd.toFixed(4)}`,
       );
     }
-    if (failures.length > 0) {
-      console.log(`\n${failures.length} mismatch(es):`);
-      for (const f of failures) {
+    if (retrievalCost) {
+      console.log('\nRetrieval comparison (same cases, same budget):');
+      console.log('| Retrieval | Input tokens | Output tokens | Cost |');
+      console.log('|---|---|---|---|');
+      for (const [name, c] of Object.entries(retrievalCost)) {
         console.log(
-          `  ${f.outcome} [${f.case.id}] expected=${f.case.expected} got=${f.verdict.status} — ${f.case.notes || '(no notes)'}`,
+          `| ${name} | ${c.inputTokens} | ${c.outputTokens} | $${c.usd.toFixed(4)} |`,
+        );
+      }
+    }
+    if (failures.length > 0) {
+      const gating = failures.filter((f) => f.gating !== false).length;
+      console.log(
+        `\n${failures.length} mismatch(es)${gating < failures.length ? ` — ${failures.length - gating} in a comparison baseline, which does not fail the run` : ''}:`,
+      );
+      for (const f of failures) {
+        const where = f.variant ? ` (${f.variant})` : '';
+        console.log(
+          `  ${f.outcome} [${f.case.id}]${where} expected=${f.case.expected} got=${f.verdict.status} — ${f.case.notes || '(no notes)'}`,
         );
       }
     }
@@ -317,8 +462,10 @@ async function main(): Promise<void> {
       },
       slices,
       cost,
+      retrievalCost,
       failures: failures.map((f) => ({
         id: f.case.id,
+        variant: f.variant ?? 'default',
         outcome: f.outcome,
         expected: f.case.expected,
         got: f.verdict.status,
@@ -339,7 +486,9 @@ async function main(): Promise<void> {
     );
     console.log(`\nReport written to benchmarks/results/report.{json,md}`);
 
-    process.exit(failures.length > 0 ? 2 : 0);
+    // Comparison baselines are measured, not enforced
+    const gatingFailures = failures.filter((f) => f.gating !== false);
+    process.exit(gatingFailures.length > 0 ? 2 : 0);
   } finally {
     await rm(semanticRoot, { recursive: true, force: true });
   }

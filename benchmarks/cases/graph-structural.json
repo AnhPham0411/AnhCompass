@@ -1,0 +1,437 @@
+[
+  {
+    "engine": "graph",
+    "id": "graph-cycle-two-file",
+    "category": "wrong",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-cycle-src",
+      "title": "no-cycle-src",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Modules under src/** must not form a dependency cycle.",
+      "deterministic": {
+        "kind": "no-cycle",
+        "from": [
+          "src/**"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Cycles make modules impossible to reason about or test in isolation.",
+    "fixture": {
+      "src/a.ts": "import { b } from './b';\nexport const a = () => b;\n",
+      "src/b.ts": "import { a } from './a';\nexport const b = () => a;\n"
+    },
+    "diff": "diff --git a/src/a.ts b/src/a.ts\n+++ b/src/a.ts\n@@ -1,2 +1,3 @@\n+import { b } from './b';\n+export const a = () => b;\n",
+    "notes": "A imports B and B imports A. The diff touches A, so the cycle is drift introduced here."
+  },
+  {
+    "engine": "graph",
+    "id": "graph-cycle-three-file",
+    "category": "wrong",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-cycle-src",
+      "title": "no-cycle-src",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Modules under src/** must not form a dependency cycle.",
+      "deterministic": {
+        "kind": "no-cycle",
+        "from": [
+          "src/**"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Cycles make modules impossible to reason about or test in isolation.",
+    "fixture": {
+      "src/a.ts": "import { b } from './b';\nexport const a = 1;\n",
+      "src/b.ts": "import { c } from './c';\nexport const b = 2;\n",
+      "src/c.ts": "import { a } from './a';\nexport const c = 3;\n"
+    },
+    "diff": "diff --git a/src/b.ts b/src/b.ts\n+++ b/src/b.ts\n@@ -1,2 +1,3 @@\n+import { c } from './c';\n+export const b = 2;\n",
+    "notes": "Three-hop cycle A to B to C back to A. The diff touches B, a member of the cycle."
+  },
+  {
+    "engine": "graph",
+    "id": "graph-cycle-none-linear",
+    "category": "correct",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-cycle-src",
+      "title": "no-cycle-src",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Modules under src/** must not form a dependency cycle.",
+      "deterministic": {
+        "kind": "no-cycle",
+        "from": [
+          "src/**"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Cycles make modules impossible to reason about or test in isolation.",
+    "fixture": {
+      "src/a.ts": "import { b } from './b';\nexport const a = 1;\n",
+      "src/b.ts": "import { c } from './c';\nexport const b = 2;\n",
+      "src/c.ts": "export const c = 3;\n"
+    },
+    "diff": "diff --git a/src/a.ts b/src/a.ts\n+++ b/src/a.ts\n@@ -1,2 +1,3 @@\n+import { b } from './b';\n+export const a = 1;\n",
+    "notes": "A linear chain is not a cycle."
+  },
+  {
+    "engine": "graph",
+    "id": "graph-cycle-outside-scope",
+    "category": "edge",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-cycle-src",
+      "title": "no-cycle-src",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Modules under src/** must not form a dependency cycle.",
+      "deterministic": {
+        "kind": "no-cycle",
+        "from": [
+          "src/**"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "The rule is scoped to src/**; vendored code is out of scope.",
+    "fixture": {
+      "lib/a.ts": "import { b } from './b';\nexport const a = 1;\n",
+      "lib/b.ts": "import { a } from './a';\nexport const b = 2;\n",
+      "src/main.ts": "export const main = 1;\n"
+    },
+    "diff": "diff --git a/lib/a.ts b/lib/a.ts\n+++ b/lib/a.ts\n@@ -1,2 +1,3 @@\n+import { b } from './b';\n+export const a = 1;\n",
+    "notes": "The cycle is real but lives in lib/**, which the rule does not cover. Scope must be honored."
+  },
+  {
+    "engine": "graph",
+    "id": "graph-cycle-untouched-by-diff",
+    "category": "edge",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-cycle-src",
+      "title": "no-cycle-src",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Modules under src/** must not form a dependency cycle.",
+      "deterministic": {
+        "kind": "no-cycle",
+        "from": [
+          "src/**"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Cycles make modules impossible to reason about or test in isolation.",
+    "fixture": {
+      "src/a.ts": "import { b } from './b';\nexport const a = 1;\n",
+      "src/b.ts": "import { a } from './a';\nexport const b = 2;\n",
+      "src/unrelated.ts": "export const u = 1;\n"
+    },
+    "diff": "diff --git a/src/unrelated.ts b/src/unrelated.ts\n+++ b/src/unrelated.ts\n@@ -1,2 +1,2 @@\n+export const u = 1;\n",
+    "notes": "A pre-existing cycle the diff does not touch. This tool reports drift introduced by a change, so an untouched cycle is not this diff’s violation."
+  },
+  {
+    "engine": "graph",
+    "id": "graph-layer-allowed-direction",
+    "category": "correct",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "layers",
+      "title": "layers",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "A layer may only import layers it is explicitly allowed to import.",
+      "deterministic": {
+        "kind": "layer-boundary",
+        "layers": {
+          "ui": [
+            "src/ui/**"
+          ],
+          "domain": [
+            "src/domain/**"
+          ],
+          "data": [
+            "src/data/**"
+          ]
+        },
+        "allow": [
+          "ui -> domain",
+          "domain -> data"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "UI may call domain; domain may call data. Nothing else.",
+    "fixture": {
+      "src/ui/Page.ts": "import { Model } from '../domain/Model';\nexport const Page = () => Model;\n",
+      "src/domain/Model.ts": "export const Model = 1;\n",
+      "src/data/Repo.ts": "export const Repo = 1;\n"
+    },
+    "diff": "diff --git a/src/ui/Page.ts b/src/ui/Page.ts\n+++ b/src/ui/Page.ts\n@@ -1,2 +1,3 @@\n+import { Model } from '../domain/Model';\n+export const Page = () => Model;\n",
+    "notes": "ui -> domain is explicitly allowed."
+  },
+  {
+    "engine": "graph",
+    "id": "graph-layer-skip-a-layer",
+    "category": "wrong",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "layers",
+      "title": "layers",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "A layer may only import layers it is explicitly allowed to import.",
+      "deterministic": {
+        "kind": "layer-boundary",
+        "layers": {
+          "ui": [
+            "src/ui/**"
+          ],
+          "domain": [
+            "src/domain/**"
+          ],
+          "data": [
+            "src/data/**"
+          ]
+        },
+        "allow": [
+          "ui -> domain",
+          "domain -> data"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "UI may call domain; domain may call data. Nothing else.",
+    "fixture": {
+      "src/ui/Page.ts": "import { Repo } from '../data/Repo';\nexport const Page = () => Repo;\n",
+      "src/domain/Model.ts": "export const Model = 1;\n",
+      "src/data/Repo.ts": "export const Repo = 1;\n"
+    },
+    "diff": "diff --git a/src/ui/Page.ts b/src/ui/Page.ts\n+++ b/src/ui/Page.ts\n@@ -1,2 +1,3 @@\n+import { Repo } from '../data/Repo';\n+export const Page = () => Repo;\n",
+    "notes": "ui reaches data directly, skipping domain. Not in the allow list."
+  },
+  {
+    "engine": "graph",
+    "id": "graph-layer-reverse-direction",
+    "category": "wrong",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "layers",
+      "title": "layers",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "A layer may only import layers it is explicitly allowed to import.",
+      "deterministic": {
+        "kind": "layer-boundary",
+        "layers": {
+          "ui": [
+            "src/ui/**"
+          ],
+          "domain": [
+            "src/domain/**"
+          ],
+          "data": [
+            "src/data/**"
+          ]
+        },
+        "allow": [
+          "ui -> domain",
+          "domain -> data"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "UI may call domain; domain may call data. Nothing else.",
+    "fixture": {
+      "src/domain/Service.ts": "import { Widget } from '../ui/Widget';\nexport const Service = () => Widget;\n",
+      "src/ui/Widget.ts": "export const Widget = 1;\n",
+      "src/data/Repo.ts": "export const Repo = 1;\n"
+    },
+    "diff": "diff --git a/src/domain/Service.ts b/src/domain/Service.ts\n+++ b/src/domain/Service.ts\n@@ -1,2 +1,3 @@\n+import { Widget } from '../ui/Widget';\n+export const Service = () => Widget;\n",
+    "notes": "domain -> ui inverts the dependency direction; only ui -> domain is allowed."
+  },
+  {
+    "engine": "graph",
+    "id": "graph-layer-same-layer",
+    "category": "edge",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "layers",
+      "title": "layers",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "A layer may only import layers it is explicitly allowed to import.",
+      "deterministic": {
+        "kind": "layer-boundary",
+        "layers": {
+          "ui": [
+            "src/ui/**"
+          ],
+          "domain": [
+            "src/domain/**"
+          ],
+          "data": [
+            "src/data/**"
+          ]
+        },
+        "allow": [
+          "ui -> domain",
+          "domain -> data"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "UI may call domain; domain may call data. Nothing else.",
+    "fixture": {
+      "src/ui/Page.ts": "import { Widget } from './Widget';\nexport const Page = () => Widget;\n",
+      "src/ui/Widget.ts": "export const Widget = 1;\n",
+      "src/domain/Model.ts": "export const Model = 1;\n"
+    },
+    "diff": "diff --git a/src/ui/Page.ts b/src/ui/Page.ts\n+++ b/src/ui/Page.ts\n@@ -1,2 +1,3 @@\n+import { Widget } from './Widget';\n+export const Page = () => Widget;\n",
+    "notes": "Both files are in the ui layer. A layer rule constrains traffic between layers, not inside one."
+  },
+  {
+    "engine": "graph",
+    "id": "graph-layer-transitive-through-unlayered",
+    "category": "edge",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "layers",
+      "title": "layers",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "A layer may only import layers it is explicitly allowed to import.",
+      "deterministic": {
+        "kind": "layer-boundary",
+        "layers": {
+          "ui": [
+            "src/ui/**"
+          ],
+          "domain": [
+            "src/domain/**"
+          ],
+          "data": [
+            "src/data/**"
+          ]
+        },
+        "allow": [
+          "ui -> domain",
+          "domain -> data"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "UI may call domain; domain may call data. Nothing else.",
+    "fixture": {
+      "src/ui/Page.ts": "import { helper } from '../shared/helper';\nexport const Page = helper;\n",
+      "src/shared/helper.ts": "import { Repo } from '../data/Repo';\nexport const helper = Repo;\n",
+      "src/data/Repo.ts": "export const Repo = 1;\n",
+      "src/domain/Model.ts": "export const Model = 1;\n"
+    },
+    "diff": "diff --git a/src/ui/Page.ts b/src/ui/Page.ts\n+++ b/src/ui/Page.ts\n@@ -1,2 +1,3 @@\n+import { helper } from '../shared/helper';\n+export const Page = helper;\n",
+    "notes": "src/shared is in no layer, so routing through it does not make the dependency legal — ui still reaches data. A checker that only inspects direct edges reports pass here."
+  },
+  {
+    "engine": "graph",
+    "id": "graph-layer-transitive-through-allowed",
+    "category": "edge",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "layers",
+      "title": "layers",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "A layer may only import layers it is explicitly allowed to import.",
+      "deterministic": {
+        "kind": "layer-boundary",
+        "layers": {
+          "ui": [
+            "src/ui/**"
+          ],
+          "domain": [
+            "src/domain/**"
+          ],
+          "data": [
+            "src/data/**"
+          ]
+        },
+        "allow": [
+          "ui -> domain",
+          "domain -> data"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "UI may call domain; domain may call data. Nothing else.",
+    "fixture": {
+      "src/ui/Page.ts": "import { Model } from '../domain/Model';\nexport const Page = Model;\n",
+      "src/domain/Model.ts": "import { Repo } from '../data/Repo';\nexport const Model = Repo;\n",
+      "src/data/Repo.ts": "export const Repo = 1;\n"
+    },
+    "diff": "diff --git a/src/ui/Page.ts b/src/ui/Page.ts\n+++ b/src/ui/Page.ts\n@@ -1,2 +1,3 @@\n+import { Model } from '../domain/Model';\n+export const Page = Model;\n",
+    "notes": "ui reaches data, but only through domain, and both hops are explicitly allowed. Flagging this would fail every layered architecture — the guard against over-correcting the transitive case."
+  }
+]

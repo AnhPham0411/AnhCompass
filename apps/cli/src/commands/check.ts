@@ -27,6 +27,9 @@ interface CheckOpts {
   saveBaseline?: boolean;
   compareBaseline?: boolean;
   baselinePath: string;
+  model?: string;
+  /** commander sets this false when --no-graph-retrieval is passed */
+  graphRetrieval: boolean;
 }
 
 export function registerCheck(program: Command): void {
@@ -41,6 +44,14 @@ export function registerCheck(program: Command): void {
     .option('--save-baseline', 'Save verdicts as the regression baseline after this run')
     .option('--compare-baseline', 'Compare verdicts against the saved baseline and report changes')
     .option('--baseline-path <file>', 'Baseline file location', '.agent/baseline.json')
+    .option(
+      '--model <id>',
+      'Pin the model for semantic checks (default: the accurate tier — see BENCHMARKS.md)',
+    )
+    .option(
+      '--no-graph-retrieval',
+      'Gather semantic context by walking directories instead of following the import graph',
+    )
     .action(async (opts: CheckOpts) => {
       const repoRoot = resolve(opts.repoRoot);
       const intentDir = resolve(opts.intentDir);
@@ -99,6 +110,8 @@ export function registerCheck(program: Command): void {
         repoRoot,
         checkedAtCommit,
         apiKey,
+        model: opts.model,
+        useGraphRetrieval: opts.graphRetrieval,
         onProgress: (msg) => console.log(pc.dim(`  ${msg}`)),
       });
 

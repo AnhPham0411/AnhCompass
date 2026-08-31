@@ -1,0 +1,97 @@
+[
+  {
+    "id": "sem-retrieval-violation-past-budget",
+    "engine": "semantic",
+    "category": "wrong",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "controller-thin",
+      "title": "Controllers stay thin",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "semantic",
+      "rule": "Controllers may parse input, call exactly one service, and shape the response. Pricing, tax, discount and other business rules belong in the service layer.",
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "The controller is the layer most likely to accumulate business rules, because it is where a change is easiest to make.",
+    "fixture": {
+      "src/api/AaaHeader00.ts": "import type { Request } from './types';\n\n/** Reads the x-request-00 header and normalises it. */\nexport function readHeader00(req: Request): string | null {\n  const raw = req.headers['x-request-00'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader01.ts": "import type { Request } from './types';\n\n/** Reads the x-request-01 header and normalises it. */\nexport function readHeader01(req: Request): string | null {\n  const raw = req.headers['x-request-01'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader02.ts": "import type { Request } from './types';\n\n/** Reads the x-request-02 header and normalises it. */\nexport function readHeader02(req: Request): string | null {\n  const raw = req.headers['x-request-02'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader03.ts": "import type { Request } from './types';\n\n/** Reads the x-request-03 header and normalises it. */\nexport function readHeader03(req: Request): string | null {\n  const raw = req.headers['x-request-03'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader04.ts": "import type { Request } from './types';\n\n/** Reads the x-request-04 header and normalises it. */\nexport function readHeader04(req: Request): string | null {\n  const raw = req.headers['x-request-04'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader05.ts": "import type { Request } from './types';\n\n/** Reads the x-request-05 header and normalises it. */\nexport function readHeader05(req: Request): string | null {\n  const raw = req.headers['x-request-05'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader06.ts": "import type { Request } from './types';\n\n/** Reads the x-request-06 header and normalises it. */\nexport function readHeader06(req: Request): string | null {\n  const raw = req.headers['x-request-06'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader07.ts": "import type { Request } from './types';\n\n/** Reads the x-request-07 header and normalises it. */\nexport function readHeader07(req: Request): string | null {\n  const raw = req.headers['x-request-07'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader08.ts": "import type { Request } from './types';\n\n/** Reads the x-request-08 header and normalises it. */\nexport function readHeader08(req: Request): string | null {\n  const raw = req.headers['x-request-08'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader09.ts": "import type { Request } from './types';\n\n/** Reads the x-request-09 header and normalises it. */\nexport function readHeader09(req: Request): string | null {\n  const raw = req.headers['x-request-09'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader10.ts": "import type { Request } from './types';\n\n/** Reads the x-request-10 header and normalises it. */\nexport function readHeader10(req: Request): string | null {\n  const raw = req.headers['x-request-10'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader11.ts": "import type { Request } from './types';\n\n/** Reads the x-request-11 header and normalises it. */\nexport function readHeader11(req: Request): string | null {\n  const raw = req.headers['x-request-11'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader12.ts": "import type { Request } from './types';\n\n/** Reads the x-request-12 header and normalises it. */\nexport function readHeader12(req: Request): string | null {\n  const raw = req.headers['x-request-12'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader13.ts": "import type { Request } from './types';\n\n/** Reads the x-request-13 header and normalises it. */\nexport function readHeader13(req: Request): string | null {\n  const raw = req.headers['x-request-13'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader14.ts": "import type { Request } from './types';\n\n/** Reads the x-request-14 header and normalises it. */\nexport function readHeader14(req: Request): string | null {\n  const raw = req.headers['x-request-14'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader15.ts": "import type { Request } from './types';\n\n/** Reads the x-request-15 header and normalises it. */\nexport function readHeader15(req: Request): string | null {\n  const raw = req.headers['x-request-15'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader16.ts": "import type { Request } from './types';\n\n/** Reads the x-request-16 header and normalises it. */\nexport function readHeader16(req: Request): string | null {\n  const raw = req.headers['x-request-16'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader17.ts": "import type { Request } from './types';\n\n/** Reads the x-request-17 header and normalises it. */\nexport function readHeader17(req: Request): string | null {\n  const raw = req.headers['x-request-17'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader18.ts": "import type { Request } from './types';\n\n/** Reads the x-request-18 header and normalises it. */\nexport function readHeader18(req: Request): string | null {\n  const raw = req.headers['x-request-18'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader19.ts": "import type { Request } from './types';\n\n/** Reads the x-request-19 header and normalises it. */\nexport function readHeader19(req: Request): string | null {\n  const raw = req.headers['x-request-19'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/types.ts": "export interface Request {\n  headers: Record<string, unknown>;\n  body: unknown;\n}\n",
+      "src/api/routes.ts": "import { OrderController } from './OrderController';\n\nexport function register(app: { post: (p: string, h: unknown) => void }) {\n  app.post('/orders', OrderController.create);\n}\n",
+      "src/api/OrderController.ts": "import type { Request } from './types';\n\nexport const OrderController = {\n  create(req: Request) {\n    const items = (req.body as { items: { price: number; qty: number }[] }).items;\n    let subtotal = 0;\n    for (const item of items) {\n      subtotal += item.price * item.qty;\n    }\n    // discount tiers applied here rather than in the service\n    let discount = 0;\n    if (subtotal > 1000) discount = subtotal * 0.1;\n    else if (subtotal > 500) discount = subtotal * 0.05;\n    const taxed = (subtotal - discount) * 1.08;\n    return { status: 201, body: { total: Math.round(taxed * 100) / 100 } };\n  },\n};\n"
+    },
+    "diff": "diff --git a/src/api/routes.ts b/src/api/routes.ts\n+++ b/src/api/routes.ts\n@@ -1,3 +1,6 @@\n+import { OrderController } from './OrderController';\n+\n+export function register(app: { post: (p: string, h: unknown) => void }) {\n+  app.post('/orders', OrderController.create);\n+}\n",
+    "notes": "The diff only wires a route. The controller it points at prices the order inline, and it sits behind twenty in-scope files the directory walk reaches first — past the context budget. Answering correctly requires following the import rather than walking the directory."
+  },
+  {
+    "id": "sem-retrieval-clean-past-budget",
+    "engine": "semantic",
+    "category": "correct",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "controller-thin",
+      "title": "Controllers stay thin",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "semantic",
+      "rule": "Controllers may parse input, call exactly one service, and shape the response. Pricing, tax, discount and other business rules belong in the service layer.",
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "The controller is the layer most likely to accumulate business rules, because it is where a change is easiest to make.",
+    "fixture": {
+      "src/api/AaaHeader00.ts": "import type { Request } from './types';\n\n/** Reads the x-request-00 header and normalises it. */\nexport function readHeader00(req: Request): string | null {\n  const raw = req.headers['x-request-00'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader01.ts": "import type { Request } from './types';\n\n/** Reads the x-request-01 header and normalises it. */\nexport function readHeader01(req: Request): string | null {\n  const raw = req.headers['x-request-01'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader02.ts": "import type { Request } from './types';\n\n/** Reads the x-request-02 header and normalises it. */\nexport function readHeader02(req: Request): string | null {\n  const raw = req.headers['x-request-02'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader03.ts": "import type { Request } from './types';\n\n/** Reads the x-request-03 header and normalises it. */\nexport function readHeader03(req: Request): string | null {\n  const raw = req.headers['x-request-03'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader04.ts": "import type { Request } from './types';\n\n/** Reads the x-request-04 header and normalises it. */\nexport function readHeader04(req: Request): string | null {\n  const raw = req.headers['x-request-04'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader05.ts": "import type { Request } from './types';\n\n/** Reads the x-request-05 header and normalises it. */\nexport function readHeader05(req: Request): string | null {\n  const raw = req.headers['x-request-05'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader06.ts": "import type { Request } from './types';\n\n/** Reads the x-request-06 header and normalises it. */\nexport function readHeader06(req: Request): string | null {\n  const raw = req.headers['x-request-06'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader07.ts": "import type { Request } from './types';\n\n/** Reads the x-request-07 header and normalises it. */\nexport function readHeader07(req: Request): string | null {\n  const raw = req.headers['x-request-07'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader08.ts": "import type { Request } from './types';\n\n/** Reads the x-request-08 header and normalises it. */\nexport function readHeader08(req: Request): string | null {\n  const raw = req.headers['x-request-08'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader09.ts": "import type { Request } from './types';\n\n/** Reads the x-request-09 header and normalises it. */\nexport function readHeader09(req: Request): string | null {\n  const raw = req.headers['x-request-09'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader10.ts": "import type { Request } from './types';\n\n/** Reads the x-request-10 header and normalises it. */\nexport function readHeader10(req: Request): string | null {\n  const raw = req.headers['x-request-10'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader11.ts": "import type { Request } from './types';\n\n/** Reads the x-request-11 header and normalises it. */\nexport function readHeader11(req: Request): string | null {\n  const raw = req.headers['x-request-11'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader12.ts": "import type { Request } from './types';\n\n/** Reads the x-request-12 header and normalises it. */\nexport function readHeader12(req: Request): string | null {\n  const raw = req.headers['x-request-12'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader13.ts": "import type { Request } from './types';\n\n/** Reads the x-request-13 header and normalises it. */\nexport function readHeader13(req: Request): string | null {\n  const raw = req.headers['x-request-13'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader14.ts": "import type { Request } from './types';\n\n/** Reads the x-request-14 header and normalises it. */\nexport function readHeader14(req: Request): string | null {\n  const raw = req.headers['x-request-14'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader15.ts": "import type { Request } from './types';\n\n/** Reads the x-request-15 header and normalises it. */\nexport function readHeader15(req: Request): string | null {\n  const raw = req.headers['x-request-15'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader16.ts": "import type { Request } from './types';\n\n/** Reads the x-request-16 header and normalises it. */\nexport function readHeader16(req: Request): string | null {\n  const raw = req.headers['x-request-16'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader17.ts": "import type { Request } from './types';\n\n/** Reads the x-request-17 header and normalises it. */\nexport function readHeader17(req: Request): string | null {\n  const raw = req.headers['x-request-17'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader18.ts": "import type { Request } from './types';\n\n/** Reads the x-request-18 header and normalises it. */\nexport function readHeader18(req: Request): string | null {\n  const raw = req.headers['x-request-18'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/AaaHeader19.ts": "import type { Request } from './types';\n\n/** Reads the x-request-19 header and normalises it. */\nexport function readHeader19(req: Request): string | null {\n  const raw = req.headers['x-request-19'];\n  if (typeof raw !== 'string') return null;\n  return raw.trim().toLowerCase();\n}\n",
+      "src/api/types.ts": "export interface Request {\n  headers: Record<string, unknown>;\n  body: unknown;\n}\n",
+      "src/api/routes.ts": "import { OrderController } from './OrderController';\n\nexport function register(app: { post: (p: string, h: unknown) => void }) {\n  app.post('/orders', OrderController.create);\n}\n",
+      "src/api/OrderController.ts": "import type { Request } from './types';\nimport { orderService } from '../services/orderService';\n\nexport const OrderController = {\n  create(req: Request) {\n    const items = (req.body as { items: unknown[] }).items;\n    const order = orderService.create(items);\n    return { status: 201, body: order };\n  },\n};\n",
+      "src/services/orderService.ts": "export const orderService = {\n  create(items: unknown[]) {\n    return { id: 'ord_1', items };\n  },\n};\n"
+    },
+    "diff": "diff --git a/src/api/routes.ts b/src/api/routes.ts\n+++ b/src/api/routes.ts\n@@ -1,3 +1,6 @@\n+import { OrderController } from './OrderController';\n+\n+export function register(app: { post: (p: string, h: unknown) => void }) {\n+  app.post('/orders', OrderController.create);\n+}\n",
+    "notes": "Identical shape to the violation case, but the controller delegates. Guards against a retrieval strategy that reaches the controller and then reports a violation regardless of what it finds there."
+  }
+]
