@@ -121,8 +121,17 @@ If you use an MCP-compatible agent (like Cursor or Claude Code), you can attach 
 anhcompass-mcp
 ```
 **Available MCP Tools:**
-- `list_intents`: Returns all active architectural rules for the current project.
-- `check_drift`: Analyzes the agent's current working tree diff and highlights violations.
+
+| Tool | What it does |
+|---|---|
+| `list_intents` | Every architectural rule defined in the project |
+| `get_architecture_context` | Before writing: the rules that cover these specific files, plus the files' direct dependencies and dependents |
+| `check_plan` | Before writing: reviews a plan against the rules, quoting the sentence that would breach one. Advisory — a plan cannot violate anything yet |
+| `check_drift` | After writing: checks the working tree diff |
+| `explain_violation` | Why a rule exists, what triggered it, how to fix it, and how to waive it deliberately |
+| `verify_fix` | Re-checks only the files that were just changed |
+
+Together these close the loop an agent works in: read the constraints, propose, check the proposal, write, verify. Output is plain text — no terminal escape codes.
 
 ---
 
@@ -194,11 +203,24 @@ The comparison reports **regressions** (`pass → violation`), **improvements**,
 The repo ships a benchmark suite (`benchmarks/`) measuring both engines against labeled cases — correct code, wrong code, edge cases, and realistic AI-generated diffs:
 
 ```bash
-pnpm bench                # deterministic cases — free, offline, runs in CI
-pnpm bench -- --semantic  # semantic cases too (needs an LLM API key, costs ~cents)
+pnpm bench                          # lexical cases — free, offline, runs in CI
+pnpm bench -- --graph               # plus the import-graph cases (also free)
+pnpm bench -- --semantic            # plus the LLM cases (needs an API key, ~5 cents)
+pnpm bench -- --semantic --compare-retrieval  # graph vs directory-walk retrieval
+pnpm bench -- --model gpt-4o        # pin the model for the semantic slice
 ```
 
-Reports precision / recall / F1 / accuracy per engine and category, plus latency percentiles and LLM cost. Results land in `benchmarks/results/report.{json,md}`. See [BENCHMARKS.md](BENCHMARKS.md) for the latest numbers.
+Reports precision / recall / F1 / accuracy per engine and category, plus latency percentiles and LLM cost. Results land in `benchmarks/results/report.{json,md}`. See [BENCHMARKS.md](BENCHMARKS.md) for the latest numbers and [PERFORMANCE.md](PERFORMANCE.md) for cost at scale.
+
+Every deterministic case runs twice, once with a graph backend attached and once without, because those are two different engine configurations and a repository's contents decide which one the CLI uses. That second pass exists because its absence once hid a bug that answered `pass` on violating repositories — the story is in BENCHMARKS.md.
+
+## 🔎 How the two deterministic engines fit together
+
+The **lexical scanner** reads the diff and finds direct dependencies, in every language it supports. The **import graph** reads the whole repository and finds transitive and structural ones, but indexes TypeScript and JavaScript only.
+
+They are additive: the scanner always runs, and the graph only adds to it. Attaching a graph backend can surface more violations, never fewer. If a rule needs the graph and no graph is available — a `no-cycle` rule in a repository the indexer cannot read — the verdict is `uncertain`, never a `pass` that was never checked.
+
+The graph also decides what a semantic check gets to read. Rather than walking directories until the context budget runs out, AnhCompass follows imports out from the changed files, so a rule broken two files away from the diff is still visible. Measured against the directory walk it finds more on fewer tokens ([BENCHMARKS.md](BENCHMARKS.md)); `--no-graph-retrieval` restores the walk.
 
 ---
 

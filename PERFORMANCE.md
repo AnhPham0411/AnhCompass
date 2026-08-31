@@ -1,42 +1,60 @@
-# Báo Cáo Hiệu Năng & Khả Năng Chịu Tải (Performance Benchmark)
+# Performance
 
-> **Mục đích:** Ghi chú lại kết quả stress-test của AnhCompass trên các điều kiện khắc nghiệt (hàng nghìn files).
-> **Ngày test:** 14/07/2026
-> **Môi trường:** Node.js 20, pnpm workspaces, Windows.
-> **LLM Provider:** OpenAI (`gpt-4o-mini`) qua Native Fetch (Model-agnostic).
+Measured 2026-09-01 on the engines currently shipped: the lexical scanner plus the
+TypeScript import graph. The earlier figures in this file measured the regex matcher
+that has since been replaced, and did not exercise the graph engine at all — they are
+superseded, not merely updated.
 
----
+## Method
 
-## 1. Bài Test 1: Quy mô Production nhỏ (500 Files)
+Synthetic repositories, because the shape has to be controlled: a dependency chain
+across every TypeScript module with periodic cross edges (so the graph has real depth
+rather than a star), roughly 1% of modules depending on a third-party package, and a
+parallel set of Python modules. Two deterministic intents are active, one targeting a
+JS package and one a Python package. A baseline commit is made, then files are modified
+and two new violating files are added untracked.
 
-*   **Đầu vào:** Diff gồm **495 files** thay đổi. Chứa 4 intents (2 deterministic, 2 semantic).
-*   **Tổng thời gian thực thi (Latency):** `4.3 giây` (4303 ms)
-*   **Kết quả phát hiện:**
-    *   **Deterministic:** Bắt chính xác 100% 2 file vi phạm (dùng `lodash` và `moment`). Tốc độ xử lý < 0.05s, không tốn token.
-    *   **Semantic:** Phát hiện chính xác `console.log` trong API layer (tỉ lệ tự tin: 100%). Rule crypto trả về `UNCERTAIN` do context cung cấp không đủ rủi ro để AI kết luận.
-*   **Kết luận:** Xử lý một Pull Request lớn (~500 files) mất chưa tới 5s. Phù hợp để nhúng thẳng vào Pre-commit hook hoặc CI pipeline mà không gây chậm trễ.
+Single run per configuration on Windows 11, Node 20. Numbers are wall clock for the
+whole `anhcompass check` process, including Node startup and `git diff`.
 
-## 2. Bài Test 2: Quy mô Monolithic Repo (10.000 Files)
+## Results
 
-*   **Đầu vào:** Diff siêu khổng lồ gồm **10.004 files**. Rải rác vi phạm ngẫu nhiên.
-*   **Tổng thời gian thực thi:** `8.78 giây` (8780 ms)
-*   **Fix kĩ thuật đã áp dụng:**
-    *   Mặc định `git diff` của 10.000 files vượt quá buffer mặc định của Node.js (1MB) gây lỗi `stdout maxBuffer length exceeded`.
-    *   **Cách giải quyết:** Đã chỉnh sửa lõi `diff/parse.ts`, tăng `maxBuffer` lên **100MB**. Hệ thống không bị crash và parse thành công toàn bộ diff trong bộ nhớ.
-*   **Kết quả phát hiện:**
-    *   **Deterministic:** Vẫn bắt trúng vi phạm (vd: `src/services/file_107.js` chứa import lodash) cực kỳ nhanh.
-    *   **Semantic:** Trả về `UNCERTAIN`. 
-*   **Bản chất của `UNCERTAIN` trên scale lớn:**
-    *   Khi diff lên tới 10.000 files, lượng text sinh ra lên tới hàng chục MB, vượt xa Context Window của LLM.
-    *   Hệ thống có cơ chế **Token Budgeting** (~6000 tokens) để bảo vệ chi phí API của user. Nó tự động cắt bớt diff.
-    *   Do file vi phạm bị cắt mất, AI không nhìn thấy chứng cứ → Trả về `UNCERTAIN`.
-    *   *Đây là tính năng an toàn (Safety feature)*: AI không bị ảo giác (hallucination) để tạo ra False Positive. Nếu không thấy, nó trung thực báo là không chắc chắn.
+| Repository | Files in diff | Cold | Graph cache warm | Fully warm |
+|---|---|---|---|---|
+| 2,500 files (2,000 ts + 500 py) | 253 | 2.8s | — | 1.2s |
+| 12,000 files (10,000 ts + 2,000 py) | 1,003 | 7.0s | 3.6s | 1.8s |
 
-## 3. Bài Học Rút Ra & Insight Kiến Trúc
+Both violations — one TypeScript, one Python — were reported in every configuration.
 
-1.  **Lá chắn Deterministic (Regex):** Trong những tình huống PR khổng lồ làm mù mắt LLM (vì vượt token budget), engine Deterministic (chạy local, regex-based) vẫn là tấm khiên thép vững chắc nhất để giữ ranh giới kiến trúc. Nó bao quát toàn bộ 10.000 files mà không sót một dòng, chi phí $0.
-2.  **Tốc độ Parse:** Thuật toán phân tách Unified Diff sang cấu trúc JSON nội bộ của AnhCompass cực kì hiệu quả. Parse 10.000 files mất chưa tới 2 giây. Phần lớn thời gian của `8.78s` là chờ Network IO từ OpenAI.
-3.  **Khả năng Model-Agnostic:** Module LLM Client viết bằng Native Fetch chạy trơn tru với API key của OpenAI, tự động map model (`claude-haiku-4-5` -> `gpt-4o-mini`) mà không cần cài thêm bất kỳ dependency cồng kềnh nào (không dùng SDK của OpenAI hay Google). Điều này giúp package giữ được sự tinh gọn tuyệt đối.
+### Where the cold time goes, at 12,000 files
 
----
-*Ghi chú: Lịch sử test và chi tiết log LLM có thể xem lại tại thư mục `.agent/cache` (nếu không clear) trong quá trình phát triển.*
+| Stage | Cost |
+|---|---|
+| Node startup, `git diff`, diff parse, intent load | ≈ 1.8s |
+| Lexical scan of 1,003 changed files + graph queries | ≈ 1.8s |
+| TypeScript AST parse of 10,000 modules (first run only) | ≈ 3.2s |
+
+The graph index is cached on disk keyed by file mtime (`.anhcompass/cache/graph.json`,
+1.1 MB at this size), so the 3.2s is paid once and then only for files that changed.
+Verdicts are cached separately, which is what takes the second run to 1.8s.
+
+## Reading these numbers
+
+The cost is dominated by two things that scale differently. The lexical scan is linear
+in the size of the diff and indifferent to repository size. The graph index is linear in
+repository size and indifferent to the diff — but it is cached, so in the steady state a
+developer pays it only for files they touched.
+
+The graph query itself was not a bottleneck at this size, though it is the part with the
+worst asymptotics: for a `no-import` rule it walks every source node matching `from`
+against every node matching `to`. Here that was roughly 10,000 breadth-first searches and
+it stayed inside the ~1.8s check budget, but a rule whose `to` pattern matches many nodes
+would multiply that. If a future rule set makes this hurt, the fix is a reverse
+reachability walk from the forbidden nodes rather than a search per source node.
+
+## Caveats
+
+These are synthetic repositories on one machine. Real codebases have deeper directory
+trees, larger files, and more third-party edges. Treat the shape of the curve as the
+finding — diff-linear lexical work, repo-linear cacheable indexing — rather than the
+absolute seconds.

@@ -22,7 +22,8 @@ jobs:
       - run: pnpm -r typecheck
       - run: pnpm lint
       - run: pnpm test
-      # deterministic benchmark — free/offline; exit 2 means label/engine mismatch
-      - run: pnpm bench
+      # deterministic + graph benchmark — free/offline; exit 2 means label/engine mismatch.
+      # The semantic slice needs an API key and is run manually, not in CI.
+      - run: pnpm bench -- --graph
       - run: node apps/cli/dist/index.js compile
       - run: node apps/cli/dist/index.js doctor
