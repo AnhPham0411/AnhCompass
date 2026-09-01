@@ -23,14 +23,48 @@ As coding agents become more autonomous, they tend to introduce "architectural d
 
 ---
 
+## What it catches, and what it does not
+
+Measured on 139 benchmark cases, including 24 held out from development. Full numbers,
+method and failures in [BENCHMARKS.md](BENCHMARKS.md).
+
+**Caught, with evidence, in milliseconds and for $0:**
+
+| | |
+|---|---|
+| Forbidden dependencies | every import form JS/TS and Python can express — default, named, namespace, side-effect, subpath, dynamic, `require`, `import =`, re-export, type-only, multi-line, scoped |
+| Transitive dependencies | the forbidden module reached through files your diff never touched |
+| Layer breaches | including one laundered through a directory that belongs to no layer |
+| Cycles | two files or four, in or out of a rule's scope |
+| Pre-existing violations | a diff that adds no import can still leave the repository in breach |
+
+**Not caught, and worth knowing before you trust it:**
+
+| | |
+|---|---|
+| Languages other than TS/JS and Python | Python gets the lexical pass only — no import graph, so no transitive answers |
+| Dynamic dependencies built from variables | `import_module(name)` cannot be resolved without running the program |
+| JSX text on its own line | can still be read as a real import; the tokeniser is not a JSX parser |
+| Anything a model judged alone | semantic verdicts warn, they never block — measured precision was 70% on a cheap model, and a third of clean pull requests would have been blocked |
+| Behaviour of agents using it | there is no measurement yet that AnhCompass makes a coding agent break architecture less often. It is the next thing to prove |
+
+When no engine can evaluate a rule — a cycle rule with no graph backend, files missing
+from the index, a model call that timed out — the answer is `uncertain`, never `pass`.
+
+---
+
 ## 🚀 Quick Start
 
 ### 1. Installation
 
-You can install AnhCompass globally or run it locally via `npx`:
+Currently, AnhCompass is in the hardening phase before its public npm release. To install it globally from source:
 
 ```bash
-npm install -g anhcompass
+git clone https://github.com/AnhPham0411/AnhCompass.git
+cd AnhCompass
+pnpm install
+pnpm build
+npm link
 ```
 
 ### 2. Initialize in your repository

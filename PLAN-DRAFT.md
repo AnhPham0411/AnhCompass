@@ -1,6 +1,8 @@
 # PLAN-DRAFT — Từ "AI checker" sang "machine-verifiable architecture layer"
 
 > Bản nháp. Nguồn: review ngoài + đối chiếu code thực tế 2026-08-31.
+> **Trạng thái 2026-09-01: Phase 0–3 đã xong** — số đo trong [BENCHMARKS.md](BENCHMARKS.md).
+> Kế hoạch tiếp theo nằm ở [ROADMAP-9.md](ROADMAP-9.md); mục 0 dưới đây là ảnh chụp hiện trạng *trước* Phase 1 và được giữ lại làm mốc so sánh, không phải mô tả hiện tại.
 > Nguyên tắc: **không thêm feature mới nào trước khi Phase 1 + 2 xong và có số đo.**
 
 ## 0. Sự thật hiện trạng (đã verify trong code, không phải cảm nhận)
@@ -65,7 +67,7 @@ Chưa biểu diễn được (ghi lại để Phase 1 xử lý): case **cycle** 
 
 typecheck ✅ · lint ✅ · `pnpm test` 78/78 ✅
 
-### Phase 1 — Import graph thật + deterministic trên AST
+### Phase 1 — Import graph thật + deterministic trên AST  ✅ XONG (2026-09-01)
 
 - `packages/graph/src/index/` — indexer TS/JS: `ts.createSourceFile` → trích import/require/dynamic-import/re-export → `{ nodes: file[], edges: import[] }`, cache trên đĩa theo mtime+hash.
 - `packages/graph/src/query/` — `reachable(from, to)`, `paths(from, to, maxHops)`, `cycles()`.
@@ -77,14 +79,14 @@ typecheck ✅ · lint ✅ · `pnpm test` 78/78 ✅
 
 **Chấp nhận xong khi:** toàn bộ FP comment/string ở Phase 0 về 0; các case transitive/layering pass; bảng so sánh Regex vs Graph trong `BENCHMARKS.md`.
 
-### Phase 2 — Retrieval thay `readFilesMatchingGlobs`
+### Phase 2 — Retrieval thay `readFilesMatchingGlobs`  ✅ XONG (2026-09-01)
 
 - Changed files → graph neighbors 1–2 hop → rank theo khoảng cách + liên quan tới scope của intent → cắt theo token budget.
 - Giữ nguyên đường cũ sau một cờ để **A/B đo được**: token dùng, recall, FP — trên cùng corpus Phase 0.
 
 **Chấp nhận xong khi:** chứng minh bằng số trên chính corpus này rằng Graph+LLM > LLM alone (recall tăng, token giảm). Nếu không chứng minh được, phải nói thẳng trong `BENCHMARKS.md`.
 
-### Phase 3 — Closed loop + governance
+### Phase 3 — Closed loop + governance  ✅ XONG (2026-09-01)
 
 - MCP: `get_architecture_context`, `check_plan`, `explain_violation`, `verify_fix` (hiện chỉ có `list_intents`, `check_drift`).
 - Intent lifecycle: `supersedes`, `conflicts_with`, `exceptions[] {path, reason, expires, approved_by}`, `review_after`.

@@ -1,6 +1,10 @@
 # TASKS-PHASE0.md — AnhCompass Phase 0
 
 > Phase 0: Skeleton & Intent Store (14–20/07/2026)
+>
+> **Lưu trữ.** Phase 0 đã xong; T5 dưới đây chưa tick nhưng thực tế đã hoàn thành từ lâu
+> (CI có ở `.github/workflows/ci.yml`, `pnpm test` xanh). Giữ lại làm lịch sử, không
+> dùng để tra trạng thái — xem [ROADMAP-9.md](ROADMAP-9.md).
 
 **DoD:** clone repo → `pnpm i` → viết 1 intent → `anhcompass compile` ra `_index.md` + manifest hợp lệ; parser test coverage cho mọi lỗi frontmatter phổ biến.
 
@@ -35,12 +39,12 @@
 - [x] `.agent/intent/no-llm-outside-llm-pkg.md`
 - [x] `.agent/intent/provider-behind-interface.md`
 
-## T5 — CI + pnpm install + test xanh ⏳
-- [ ] `pnpm install` thành công
-- [ ] `pnpm test` xanh (vitest)
-- [ ] `pnpm build` thành công
-- [ ] `pnpm run anhcompass compile` chạy ra `_index.md` + `manifest.json`
-- [ ] `.github/workflows/ci.yml`
+## T5 — CI + pnpm install + test xanh ✅
+- [x] `pnpm install` thành công
+- [x] `pnpm test` xanh (vitest)
+- [x] `pnpm build` thành công
+- [x] `pnpm run anhcompass compile` chạy ra `_index.md` + `manifest.json`
+- [x] `.github/workflows/ci.yml`
 
 ---
 

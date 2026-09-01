@@ -1,7 +1,7 @@
 # AnhCompass Benchmark Results
 
 > Reproduce: `pnpm bench` (deterministic, free, offline) · `pnpm bench -- --semantic` (needs an LLM API key) · `pnpm bench -- --graph` (needs the graph engine, Phase 1).
-> Corpus: `benchmarks/cases/` — every case is labeled from **rule semantics**, never from observed engine behavior.
+> Corpus: `benchmarks/cases/dev/` (debuggable) and `benchmarks/cases/holdout/` (not looked at while fixing). Every case is labeled from **rule semantics**, never from observed engine behavior.
 > Categories: **correct** (clean code) · **wrong** (clear violations) · **edge** (tricky but decidable) · **ai-generated** (realistic multi-file coding-agent diffs).
 
 ## Corpus
@@ -17,6 +17,8 @@
 | `semantic.json` | 14 | Prose rules requiring judgment: layering, error handling, secrets, purity, plus buried violations in agent-shaped diffs |
 | `semantic-retrieval.json` | 2 | Repositories holding more in-scope files than the context budget allows, where the file that decides the verdict is not the one a directory walk reaches first |
 | `seed.json` | 2 | Original smoke cases |
+| `holdout/det-holdout.json` | 14 | **Held out.** Module extensions, shebang, scoped subpaths, look-alike names, JSX text, nested templates, a waiver one line off, Python relative and dynamic imports |
+| `holdout/graph-holdout.json` | 10 | **Held out.** Seven-hop chain, diamond, barrel re-export, four-file cycle, self-import, layer breach through an unlayered directory, `tsconfig.base.json` alias, unreachable violator |
 | **Total** | **113** | |
 
 Every deterministic case runs twice — with and without a graph provider attached — because
@@ -281,6 +283,125 @@ holding none of its files, now returns `uncertain`.
 **What this evidence is not.** One repository, two rules, three diffs. It shows the tool
 does not cry wolf on one real codebase; it says nothing about how it behaves on a hundred.
 
+## Phase 4 — a held-out corpus, 2026-09-01
+
+Every number above was measured on cases written by the same hand that wrote the engines,
+and every one of them read 100%. That is the point at which a benchmark stops carrying
+information: an engine tuned until its own corpus is green has learned the corpus.
+
+So the corpus is now split. `benchmarks/cases/dev/` is what may be debugged against.
+`benchmarks/cases/holdout/` is written from rule semantics, covers behaviour the dev
+corpus never exercised, and is not looked at while fixing anything. The report prints the
+two as separate rows.
+
+**24 held-out cases** — 14 deterministic, 10 graph. Ground covered by neither corpus
+before: `.mts`/`.cts`/`.tsx` modules, a shebang line, deep subpaths of scoped packages,
+look-alike package names in both directions, JSX text, nested template literals, a waiver
+one line away from the import it was meant to cover, Python relative imports and dynamic
+imports; and for the graph, a seven-hop chain, a diamond with two paths to the same
+module, a barrel re-export, a four-file cycle, a self-import, a layer breach laundered
+through an unlayered directory, a `tsconfig.base.json` path alias, and a forbidden module
+that exists in the repository but is unreachable from the rule's scope.
+
+### First run: 12 of 14, and 10 of 10
+
+| Slice | Cases | FP | FN | Precision | Recall | F1 |
+|---|---|---|---|---|---|---|
+| deterministic (holdout) | 14 | 1 | 1 | 87.5% | 87.5% | 87.5% |
+| deterministic / edge (holdout) | 10 | 1 | 1 | 80.0% | 80.0% | 80.0% |
+| graph (holdout) | 10 | 0 | 0 | 100% | 100% | 100% |
+
+Against 100% on the dev corpus in the same run. The gap is the measurement working.
+
+**The false positive — `ho-det-import-in-jsx-text`.**
+
+```tsx
+export const D = () => <p>run: import _ from 'lodash'</p>;
+```
+
+Element text, reported as a lodash dependency. The tokeniser removes comments and string
+bodies, and JSX text is neither: to a tokeniser it is a run of ordinary word tokens. On a
+React codebase — the most common shape a TypeScript repository takes — this is the failure
+mode the project claims to be built against, telling a developer their prose is a
+violation.
+
+**The false negative — `ho-det-python-importlib`.**
+
+```python
+requests = importlib.import_module('requests')
+```
+
+A dependency created by a function call rather than a statement. The extractor read
+`import` and `from` and nothing else.
+
+### Both fixed, at the cause
+
+`import … from` is a *declaration*: the ES grammar admits it only at the top level of a
+module, never inside an expression. The extractor now requires statement position — start
+of input, after a `;` or a brace, or opening its own line. The JSX case sits mid-line
+behind a `:` and is rejected on grammar, not on a heuristic about JSX. `import(...)` is an
+expression and is exempt, because it is legal anywhere.
+
+*Residual limit, stated rather than hidden:* JSX text that begins its own line still looks
+like a statement and is still reported. Separating that needs a real JSX parser.
+
+For Python, `importlib.import_module` and `__import__` with a literal argument are now
+read as the dependencies they are. A non-literal argument is still invisible, and always
+will be without evaluating the program.
+
+Both fixes carry unit tests, so the holdout case is not the only thing standing between
+them and a regression.
+
+| Slice | Cases | FP | FN | Precision | Recall | F1 |
+|---|---|---|---|---|---|---|
+| deterministic (holdout) | 14 | 0 | 0 | 100% | 100% | 100% |
+| deterministic (dev) | 68 | 0 | 0 | 100% | 100% | 100% |
+| graph (holdout) | 10 | 0 | 0 | 100% | 100% | 100% |
+| graph (dev) | 31 | 0 | 0 | 100% | 100% | 100% |
+
+**What this result is not.** The holdout is now green because it has been fixed against,
+which spends it: it is dev corpus from here on. Twenty-four cases is a small sample, and
+100% on it means "no measurable errors at this size". The next honest measurement is a
+fresh holdout written for the next engine change — and repositories nobody here wrote,
+which is what Phase 5 is for.
+
+### The semantic slice, re-measured on the shipped path
+
+Run again after the provider became an explicit choice rather than a guess at the key
+prefix, on the same 16 cases (`gpt-4o`, `LLM_PROVIDER=openai`):
+
+| Slice | Cases | TP | TN | FP | FN | Precision | Recall | Latency p50/p95 |
+|---|---|---|---|---|---|---|---|---|
+| semantic (all) | 16 | 8 | 8 | 0 | 0 | 100% | 100% | 2.4s / 4.4s |
+| semantic / correct | 5 | 0 | 5 | 0 | 0 | 100% | 100% | 2.6s / 2.9s |
+| semantic / wrong | 6 | 6 | 0 | 0 | 0 | 100% | 100% | 2.4s / 4.4s |
+| semantic / edge | 3 | 1 | 2 | 0 | 0 | 100% | 100% | 1.7s / 2.3s |
+| semantic / ai-generated | 2 | 1 | 1 | 0 | 0 | 100% | 100% | 1.3s / 3.7s |
+
+16 calls, 12,098 in / 1,583 out, **$0.046**. Unchanged from the Phase 2 measurement, which
+is the point: the provider plumbing changed and the verdicts did not.
+
+The caveat from Phase 1 still stands and has not improved — sixteen cases is a small
+sample, and 100% on it means "no measurable errors at this size", not a precision
+guarantee. The semantic corpus is the one part of the benchmark that has not grown, and
+the 72 generated cases briefly added to it were removed rather than kept: they covered
+two rules and four diffs between them, so they would have multiplied the cost of a run
+by four and a half while measuring nothing new.
+
+Note the latency: **p95 of 4.4s per intent against 1ms for the deterministic engine.**
+That ratio, not the dollar cost, is why semantic checks are the opt-in half of the tool.
+
+### One case that was nearly a third bug
+
+`ho-graph-tsconfig-base-alias` passed, but only because the indexer had been fixed the
+same day. It had been searching upward from the repository root for `tsconfig.json`, so a
+monorepo whose root holds only `tsconfig.base.json` — the ordinary convention, and this
+repository's own layout — resolved no aliases at all, and could adopt the compiler options
+of an unrelated project sitting in a parent directory. Every aliased import would have
+become a dangling edge, and a layer rule evaluated over an index missing its edges reports
+`pass`. Same failure family as the `.mjs` blind spot found by dependency-cruiser: an
+engine that cannot see its input answering confidently.
+
 ## What each phase must move
 
 | Phase | Target | Status |
@@ -288,6 +409,8 @@ does not cry wolf on one real codebase; it says nothing about how it behaves on 
 | 1 — AST + import graph | deterministic/edge precision → 100% (all 8 FP are parse-level), the 4 FN fixed, 20 graph cases enabled and passing | ✅ done — see above |
 | 2 — retrieval | semantic slice measured twice on the same corpus: current glob-walk context vs graph-neighborhood context. Report token count, recall and FP for both | ✅ done — graph retrieval wins on recall, tokens and cost, and is now the default |
 | 3 — closed loop | no new accuracy target; corpus guards against regression | ✅ done — all six MCP tools implemented, with a stdio integration test |
+| 4 — held-out corpus | cases the engine was not tuned against, reported separately | ✅ done — found one false positive and one miss the dev corpus could not; both fixed at the cause |
+| 5 — repositories nobody here wrote | false-positive rate on ≥100 real diffs across ≥10 projects | ⬜ not started — one repository, three diffs, so far |
 
 Two negative results are kept above rather than deleted: prompt v2 bought nothing on the
 cheap model, and graph retrieval was indistinguishable from the directory walk until the
