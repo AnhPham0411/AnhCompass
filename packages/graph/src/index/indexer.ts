@@ -12,6 +12,33 @@ export interface GraphData {
   edges: ImportEdge[];
 }
 
+/** Is this repo-relative path source the walker would actually index?
+ *
+ *  Anything inside `node_modules` is a third-party file, and anything inside a
+ *  build directory is a copy of source that already has a node of its own. An
+ *  edge to either is an edge to a node that does not exist, which is worse than
+ *  no edge: a layer rule evaluated over a graph full of dangling edges reports
+ *  `pass` while the dependency it forbids sits there. */
+function isFirstPartySource(relativePath: string): boolean {
+  const segments = relativePath.split('/');
+  return !segments.some((s) => s === 'node_modules' || s === 'dist' || s === 'build');
+}
+
+/** Bumped whenever how an edge is derived changes.
+ *
+ *  The cache is keyed by file mtime, which answers "has this file changed" and
+ *  not "would this file resolve differently now". After the resolver stopped
+ *  expanding bare specifiers into node_modules paths, every unchanged file
+ *  still served its old edges from disk and the fix appeared not to work. A
+ *  cache that outlives the logic that filled it is a wrong answer with a fast
+ *  path to it. */
+const INDEX_FORMAT_VERSION = 2;
+
+interface CacheFile {
+  version: number;
+  entries: Record<string, { mtime: number; edges: string[] }>;
+}
+
 export class Indexer {
   private repoRoot: string;
   private cacheDir: string;
@@ -23,14 +50,33 @@ export class Indexer {
     this.loadCache();
   }
 
+  /** A cache entry the on-disk file has to produce before it is trusted.
+   *  The file is ordinary user-writable JSON; a malformed entry must be
+   *  dropped, not fed to the graph as if it were an index. */
+  private static isCacheEntry(v: unknown): v is { mtime: number; edges: string[] } {
+    if (typeof v !== 'object' || v === null) return false;
+    const e = v as { mtime?: unknown; edges?: unknown };
+    return (
+      typeof e.mtime === 'number' &&
+      Array.isArray(e.edges) &&
+      e.edges.every((edge) => typeof edge === 'string')
+    );
+  }
+
   private loadCache() {
     try {
       const cacheFile = path.join(this.cacheDir, 'graph.json');
-      if (fs.existsSync(cacheFile)) {
-        const data = JSON.parse(fs.readFileSync(cacheFile, 'utf-8'));
-        for (const [k, v] of Object.entries(data)) {
-          this.memoryCache.set(k, v as any);
-        }
+      if (!fs.existsSync(cacheFile)) return;
+
+      const data: unknown = JSON.parse(fs.readFileSync(cacheFile, 'utf-8'));
+      if (typeof data !== 'object' || data === null) return;
+
+      const file = data as Partial<CacheFile>;
+      if (file.version !== INDEX_FORMAT_VERSION) return; // written by an older resolver
+      if (typeof file.entries !== 'object' || file.entries === null) return;
+
+      for (const [k, v] of Object.entries(file.entries)) {
+        if (Indexer.isCacheEntry(v)) this.memoryCache.set(k, v);
       }
     } catch {
       // ignore
@@ -42,7 +88,10 @@ export class Indexer {
       if (!fs.existsSync(this.cacheDir)) {
         fs.mkdirSync(this.cacheDir, { recursive: true });
       }
-      const data = Object.fromEntries(this.memoryCache.entries());
+      const data: CacheFile = {
+        version: INDEX_FORMAT_VERSION,
+        entries: Object.fromEntries(this.memoryCache.entries()),
+      };
       fs.writeFileSync(path.join(this.cacheDir, 'graph.json'), JSON.stringify(data, null, 2));
     } catch {
       // ignore
@@ -129,54 +178,73 @@ export class Indexer {
     return edges;
   }
 
-  private tsconfigPaths: Record<string, string[]> | null = null;
-  private resolveImport(fromPath: string, specifier: string): string {
-    if (this.tsconfigPaths === null) {
-      this.tsconfigPaths = {};
-      try {
-        
-        
-        const tsconfigPath = path.join(this.repoRoot, "tsconfig.json");
-        if (fs.existsSync(tsconfigPath)) {
-          const tsconfigStr = fs.readFileSync(tsconfigPath, "utf-8");
-          // remove comments
-          const cleaned = tsconfigStr.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, "");
-          const tsconfig = JSON.parse(cleaned);
-          if (tsconfig.compilerOptions?.paths) {
-            this.tsconfigPaths = tsconfig.compilerOptions.paths;
-          }
-        }
-      } catch {}
+  private compilerOptions: ts.CompilerOptions | null = null;
+
+  /** The tsconfig whose `paths` govern this repository.
+   *
+   *  Deliberately not `ts.findConfigFile`, which walks *up* past the repo root
+   *  when it finds nothing: a monorepo whose root holds only `tsconfig.base.json`
+   *  would silently adopt the compiler options of whatever unrelated project
+   *  happens to sit in a parent directory. The search stays inside the repo and
+   *  knows about the base-config convention. */
+  private findTsconfig(): string | undefined {
+    for (const name of ['tsconfig.json', 'tsconfig.base.json']) {
+      const candidate = path.join(this.repoRoot, name);
+      if (fs.existsSync(candidate)) return candidate;
     }
-    
-    // try to apply tsconfig paths
-    if (!specifier.startsWith(".")) {
-      for (const [alias, targets] of Object.entries(this.tsconfigPaths || {})) {
-        if (alias.endsWith("/*") && specifier.startsWith(alias.slice(0, -2))) {
-          for (const target of targets) {
-            if (target.endsWith("/*")) {
-              const mapped = target.slice(0, -2) + specifier.slice(alias.length - 2);
-              const resolved = path.resolve(this.repoRoot, mapped);
-              // Extensions in priority order
-              const extensions = ["", ".ts", ".tsx", ".js", ".jsx", "/index.ts", "/index.js"];
-              for (const ext of extensions) {
-                const withExt = resolved + ext;
-                try {
-                  if (fs.existsSync(withExt) && fs.statSync(withExt).isFile()) {
-                    return path.relative(this.repoRoot, withExt).replace(/\\/g, "/");
-                  }
-                } catch {}
-              }
-            }
-          }
+    return undefined;
+  }
+
+
+  private resolveImport(fromPath: string, specifier: string): string {
+    if (this.compilerOptions === null) {
+      this.compilerOptions = {};
+      const configPath = this.findTsconfig();
+      if (configPath) {
+        const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
+        if (!configFile.error) {
+          const parsed = ts.parseJsonConfigFileContent(
+            configFile.config,
+            ts.sys,
+            this.repoRoot
+          );
+          this.compilerOptions = parsed.options;
         }
       }
     }
+
+    const absFromPath = path.resolve(this.repoRoot, fromPath);
+    const result = ts.resolveModuleName(
+      specifier,
+      absFromPath,
+      this.compilerOptions,
+      ts.sys
+    );
+
+    if (result.resolvedModule) {
+      const resolved = path
+        .relative(this.repoRoot, result.resolvedModule.resolvedFileName)
+        .replace(/\\/g, '/');
+
+      // A dependency rule names packages — `lodash`, `@acme/db` — and matches
+      // them against graph nodes. Resolving a bare specifier all the way to the
+      // file it ships would turn that node into
+      // `node_modules/.pnpm/lodash@4/node_modules/lodash/index.js`, which no
+      // rule can name and which the walker never indexes anyway. So a bare
+      // specifier stays the package it names; only a specifier that lands on
+      // first-party source becomes a path, which is what makes a `paths` alias
+      // a real edge instead of a dangling one.
+      if (specifier.startsWith('.') || isFirstPartySource(resolved)) {
+        return resolved;
+      }
+      return specifier;
+    }
+
     if (!specifier.startsWith('.')) {
       return specifier;
     }
 
-    const fromDir = path.dirname(path.resolve(this.repoRoot, fromPath));
+    const fromDir = path.dirname(absFromPath);
     const targetPath = path.resolve(fromDir, specifier);
     
     // Extensions in priority order

@@ -1,9 +1,19 @@
 import { join, relative } from 'node:path';
-import { stat, readdir } from 'node:fs/promises';
+import { stat, readdir, readFile } from 'node:fs/promises';
 import { Indexer } from './index/indexer.js';
 import { QueryEngine } from './query/query.js';
 import type { GraphProvider, ParsedDiff, SymbolRef, AnchorResolution, CodeContext } from './provider.js';
 import { NullProvider } from './null-provider.js';
+
+/** Splits on both line endings — a `.gitignore` written on Windows is still a
+ *  `.gitignore`. */
+const NEWLINE_RE = /\r?\n/;
+
+/** Directory names, and name prefixes, the walk should not descend into. */
+interface IgnoreRules {
+  exact: Set<string>;
+  prefixes: string[];
+}
 
 export class TsGraphProvider implements GraphProvider {
   readonly name = 'ts-graph';
@@ -30,6 +40,66 @@ export class TsGraphProvider implements GraphProvider {
     return false;
   }
 
+  /** Directory names never worth indexing, whatever the repo says. Kept
+   *  separate from `.gitignore` because a repo that commits its `dist/` still
+   *  should not have build output in its dependency graph. */
+  private static readonly ALWAYS_IGNORED = [
+    'node_modules',
+    '.git',
+    'dist',
+    '.next',
+    'coverage',
+    'build',
+    'vendor',
+    '.anhcompass',
+  ];
+
+  /** Directory patterns the repo's own root `.gitignore` excludes.
+   *
+   *  Deliberately a subset of gitignore semantics: a single path segment,
+   *  optionally ending in one star — "dist", "out", "real-demo" plus a star.
+   *  Negations, nested ignore files, and patterns with a slash or an interior
+   *  wildcard are not honoured; a partial reading that silently dropped source
+   *  files would be worse than indexing a few extra ones, and the graph only
+   *  ever reports paths it actually found.
+   *
+   *  The trailing star earns its place: a generated fixture tree matched by one
+   *  is the difference between indexing a repository and indexing a repository
+   *  plus seventeen thousand files nobody committed. */
+  private async ignoredDirsFromGitignore(): Promise<IgnoreRules> {
+    const exact = new Set<string>();
+    const prefixes: string[] = [];
+    let text: string;
+    try {
+      text = await readFile(join(this.repoRoot, '.gitignore'), 'utf-8');
+    } catch {
+      return { exact, prefixes };
+    }
+
+    for (const raw of text.split(NEWLINE_RE)) {
+      const line = raw.trim();
+      if (!line || line.startsWith('#') || line.startsWith('!')) continue;
+      if (line.includes('?') || line.includes('[')) continue;
+
+      const name = line.replace(/^\//, '').replace(/\/$/, '');
+      if (!name || name.includes('/')) continue;
+
+      const star = name.indexOf('*');
+      if (star === -1) {
+        exact.add(name);
+      } else if (star === name.length - 1) {
+        prefixes.push(name.slice(0, -1));
+      }
+      // an interior wildcard (`a*b`) is left alone
+    }
+    return { exact, prefixes };
+  }
+
+  private static isIgnored(entry: string, rules: IgnoreRules): boolean {
+    if (rules.exact.has(entry)) return true;
+    return rules.prefixes.some((prefix) => prefix !== '' && entry.startsWith(prefix));
+  }
+
   public async getQueryEngine(): Promise<QueryEngine> {
     if (this.query) return this.query;
     if (!this.indexer) {
@@ -38,6 +108,7 @@ export class TsGraphProvider implements GraphProvider {
     
     // Walk to find all TS/JS files
     const allFiles: string[] = [];
+    const gitignored = await this.ignoredDirsFromGitignore();
     const walk = async (dir: string) => {
       let entries: string[];
       try {
@@ -46,7 +117,8 @@ export class TsGraphProvider implements GraphProvider {
         return;
       }
       for (const entry of entries) {
-        if (entry === 'node_modules' || entry === '.git' || entry === 'dist') continue;
+        if (TsGraphProvider.ALWAYS_IGNORED.includes(entry)) continue;
+        if (TsGraphProvider.isIgnored(entry, gitignored)) continue;
         const full = join(dir, entry);
         const s = await stat(full).catch(() => null);
         if (!s) continue;
