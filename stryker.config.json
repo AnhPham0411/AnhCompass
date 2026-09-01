@@ -15,5 +15,13 @@
   },
   "plugins": [
     "@stryker-mutator/vitest-runner"
-  ]
+  ],
+  "reporters": [
+    "json",
+    "clear-text",
+    "progress"
+  ],
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  }
 }

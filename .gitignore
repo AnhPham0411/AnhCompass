@@ -12,3 +12,4 @@ generate-*.js
 benchmarks/results/
 .anhcompass/
 .stryker-tmp/
+reports/

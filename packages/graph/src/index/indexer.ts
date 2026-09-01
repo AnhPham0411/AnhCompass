@@ -190,7 +190,11 @@ export class Indexer {
   private findTsconfig(): string | undefined {
     for (const name of ['tsconfig.json', 'tsconfig.base.json']) {
       const candidate = path.join(this.repoRoot, name);
-      if (fs.existsSync(candidate)) return candidate;
+      // Forward slashes: TypeScript normalises paths internally and asserts
+      // that the one it was handed matches, so a Windows path reaches its
+      // diagnostic code and throws a Debug Failure instead of reporting the
+      // syntax error it found.
+      if (fs.existsSync(candidate)) return candidate.split(path.sep).join('/');
     }
     return undefined;
   }
@@ -201,14 +205,16 @@ export class Indexer {
       this.compilerOptions = {};
       const configPath = this.findTsconfig();
       if (configPath) {
-        const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
-        if (!configFile.error) {
-          const parsed = ts.parseJsonConfigFileContent(
-            configFile.config,
-            ts.sys,
-            this.repoRoot
-          );
-          this.compilerOptions = parsed.options;
+        // A tsconfig is user-written and may be anything. Losing its `paths`
+        // costs some alias edges; letting it throw costs the whole check.
+        try {
+          const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
+          if (!configFile.error) {
+            const parsed = ts.parseJsonConfigFileContent(configFile.config, ts.sys, this.repoRoot);
+            this.compilerOptions = parsed.options;
+          }
+        } catch {
+          // keep the empty options and resolve relatively
         }
       }
     }
