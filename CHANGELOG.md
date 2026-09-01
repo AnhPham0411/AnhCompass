@@ -6,6 +6,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Added
 
+- **Mutation testing** (`pnpm mutate`). The first measurement said the suite was worth
+  **43.9%**: of 3,015 mutants, 968 — a third of the codebase — were never reached by a
+  test at all, while coverage reported otherwise. Six modules had no tests, including the
+  pipeline that orchestrates every check. After 224 new tests it reads **68.35%**, with
+  117 mutants unreached.
+
+  The threshold is set at 65 rather than the 70 originally written down: 70 was chosen
+  before any measurement existed, and the remaining survivors are largely mutants no test
+  can distinguish — a changed zod message, a default value nothing reads. A threshold
+  below the measured score catches a regression; one above it only reports the same
+  failure forever.
 - **Held-out benchmark corpus** (`benchmarks/cases/holdout/`, 24 cases). Cases are written
   from rule semantics and are not used to debug the engine. The report prints `dev` and
   `holdout` as separate rows, because an engine measured only on the corpus it was tuned

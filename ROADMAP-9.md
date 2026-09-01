@@ -70,10 +70,10 @@ Review đó đọc [BENCHMARKS.md](BENCHMARKS.md) nhưng dừng ở mục **"Bas
 | Hybrid enforcement có bằng chứng thực nghiệm | ✅ |
 | Benchmark công bố cả kết quả âm | ✅ |
 | Deterministic precision/recall ≥ 95% trên **held-out** | ✅ 24 case held-out, 100% sau khi sửa 2 defect nó tìm ra |
-| Unit test cho `graph` + `llm` | ✅ graph 34, llm 26 (tổng 186 test, trước là 115) |
+| Unit test cho `graph` + `llm` | ✅ tổng **413 test**, trước là 115. Không còn module nào không có test |
 | CI xanh 3 OS, semantic slice có chạy | ✅ matrix 3 OS × Node 20/22; semantic chạy khi có `LLM_API_KEY` |
 | Cài được bằng 1 lệnh | ⚠️ bundle đã publish-ready (`npm pack` chạy được, không còn workspace dep); còn thiếu bước `npm publish` |
-| Mutation score ≥ 70% trên `core` + `graph` | ❌ có `stryker.config.json`, chưa chạy |
+| Mutation score ≥ 70% trên `core` + `graph` | ⚠️ đo được **68.35%** (71.1% nếu chỉ tính code có test). Từ 43.9% lên. Mutant không được test chạm tới: 968 → 117 |
 | FP rate < 1% trên ≥ 100 diff thật, ≥ 10 repo | ❌ mới 1 repo / 3 diff |
 | **Agent violation giảm ≥ 50%, false block < 2%** | ❌ quan trọng nhất, chưa bắt đầu |
 | CHANGELOG + release + docs | ⚠️ CHANGELOG/CONTRIBUTING/SECURITY/CoC/ARCHITECTURE/template đã có; chưa tag `v0.1.0` |
