@@ -40,8 +40,8 @@ export function runDoctor(intents: Intent[]): DoctorIssue[] {
     for (let j = i + 1; j < intents.length; j++) {
       const other = intents[j];
       // If one scope includes another exactly, or they are identical
-      const isIdentical = scope.length === other.frontmatter.scope.length && 
-                          scope.every((s, idx) => s === other.frontmatter.scope[idx]);
+      const isIdentical = scope.length === other.frontmatter.scope.length &&
+        scope.every((s, idx) => s === other.frontmatter.scope[idx]);
       if (isIdentical) {
         issues.push({
           intentId: id,

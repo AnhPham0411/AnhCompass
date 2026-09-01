@@ -111,3 +111,58 @@ describe('specifierMatchesPackage', () => {
     expect(specifierMatchesPackage('requests_mock', 'requests', 'python')).toBe(false);
   });
 });
+
+describe('statement position (JSX text is not code)', () => {
+  it('ignores an import declaration inside JSX element text', () => {
+    expect(
+      jsSpecs(`export const D = () => <p>run: import _ from 'lodash'</p>;`),
+    ).toEqual([]);
+  });
+
+  it('ignores an import declaration after a JSX tag on the same line', () => {
+    expect(jsSpecs(`const el = <p>import _ from 'lodash'</p>;`)).toEqual([]);
+  });
+
+  it('still reads a real import that opens its line', () => {
+    expect(jsSpecs(`import _ from 'lodash';\nexport const x = _;`)).toEqual(['lodash']);
+  });
+
+  it('still reads a second import on the same line after a semicolon', () => {
+    expect(jsSpecs(`import a from 'lodash'; import b from 'axios';`)).toEqual([
+      'lodash',
+      'axios',
+    ]);
+  });
+
+  it('still reads an import inside a block', () => {
+    expect(jsSpecs(`{ import a from 'lodash'; }`)).toEqual(['lodash']);
+  });
+
+  it('reads dynamic import anywhere, since it is an expression', () => {
+    expect(jsSpecs(`const p = cond ? import('lodash') : null;`)).toEqual(['lodash']);
+  });
+
+  it('reads a shebang line and the import beneath it', () => {
+    expect(jsSpecs(`#!/usr/bin/env node\nimport _ from 'lodash';`)).toEqual(['lodash']);
+  });
+});
+
+describe('Python dynamic imports', () => {
+  it('reads importlib.import_module', () => {
+    expect(pySpecs(`import importlib\nx = importlib.import_module('requests')`)).toContain(
+      'requests',
+    );
+  });
+
+  it('reads __import__', () => {
+    expect(pySpecs(`x = __import__('requests')`)).toEqual(['requests']);
+  });
+
+  it('ignores import_module with a non-literal argument', () => {
+    expect(pySpecs(`x = importlib.import_module(name)`)).toEqual([]);
+  });
+
+  it('ignores the word import_module on its own', () => {
+    expect(pySpecs(`import_module = 1`)).toEqual([]);
+  });
+});

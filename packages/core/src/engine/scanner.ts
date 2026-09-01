@@ -181,14 +181,14 @@ function tokenizeJs(text: string): { tokens: Token[]; comments: Map<number, stri
     if (templates.length > 0) {
       const top = templates.length - 1;
       if (ch === '{') {
-        templates[top]!++;
+        templates[top] = templates[top]! + 1;
       } else if (ch === '}') {
         if (templates[top] === 0) {
           mode = 'template';
           i++;
           continue;
         }
-        templates[top]!--;
+        templates[top] = templates[top]! - 1;
       }
     }
 
@@ -207,6 +207,28 @@ function isJsWordChar(ch: string): boolean {
   return /[A-Za-z0-9_$]/.test(ch);
 }
 
+/** Is the token at `index` in statement position?
+ *
+ *  `import x from 'y'` and `export … from 'y'` are declarations: the grammar
+ *  only admits them at the top level of a module, never inside an expression.
+ *  So the keyword must open a statement — start of file, after a `;` or a
+ *  brace, or on a line of its own.
+ *
+ *  What this buys is JSX. `<p>run: import _ from 'lodash'</p>` is element text,
+ *  not code, and the tokenizer has no way to know that; the keyword there sits
+ *  mid-line behind a `:` and is rejected here instead. Telling a developer that
+ *  the prose in their component is a forbidden dependency is exactly the false
+ *  positive that gets a checker switched off.
+ *
+ *  Known limit: JSX text that begins its own line still looks like a statement
+ *  and is still reported. Separating those needs a real JSX parser. */
+function inStatementPosition(tokens: Token[], index: number): boolean {
+  const prev = tokens[index - 1];
+  if (!prev) return true;
+  if (prev.line !== tokens[index]!.line) return true;
+  return prev.kind === 'punct' && (prev.value === ';' || prev.value === '{' || prev.value === '}');
+}
+
 /** Every form that creates a module dependency in JS/TS. */
 function extractJsImports(tokens: Token[]): ImportRef[] {
   const imports: ImportRef[] = [];
@@ -217,6 +239,11 @@ function extractJsImports(tokens: Token[]): ImportRef[] {
 
     if (token.value === 'import' || token.value === 'export') {
       const next = tokens[i + 1];
+
+      // `import('pkg')` is an expression and legal anywhere; the declaration
+      // forms below are not, so they are held to statement position.
+      const isDynamic = next?.kind === 'punct' && next.value === '(';
+      if (!isDynamic && !inStatementPosition(tokens, i)) continue;
 
       // import 'pkg' — side effect only
       if (token.value === 'import' && next?.kind === 'string') {
@@ -338,12 +365,33 @@ function tokenizePython(text: string): { tokens: Token[]; comments: Map<number, 
 }
 
 /** `import a, b.c as d` and `from a.b import c`. Relative imports are skipped. */
+/** Python functions that take a module name as a string and return the module.
+ *  A dependency introduced this way is invisible to `import` statements but is
+ *  the same dependency at runtime. */
+const PYTHON_DYNAMIC_IMPORTS = new Set(['import_module', '__import__']);
+
 function extractPythonImports(tokens: Token[]): ImportRef[] {
   const imports: ImportRef[] = [];
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]!;
     if (token.kind !== 'word') continue;
+
+    // importlib.import_module('requests') / __import__('requests')
+    if (PYTHON_DYNAMIC_IMPORTS.has(token.value)) {
+      const open = tokens[i + 1];
+      const arg = tokens[i + 2];
+      if (
+        open?.kind === 'punct' &&
+        open.value === '(' &&
+        arg?.kind === 'string' &&
+        arg.value.length > 0
+      ) {
+        imports.push({ specifier: arg.value, line: token.line });
+        i += 2;
+        continue;
+      }
+    }
 
     if (token.value === 'from') {
       let j = i + 1;
