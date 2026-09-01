@@ -19,7 +19,7 @@ import {
   renderExplanation,
 } from '@anhcompass/core';
 import { detectProvider } from '@anhcompass/graph';
-import { resolveLlmApiKey } from '@anhcompass/llm';
+import { resolveLlmApiKey, resolveLlmProvider } from '@anhcompass/llm';
 import micromatch from 'micromatch';
 
 const server = new Server(
@@ -122,12 +122,26 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
+/** MCP arguments arrive from another program over stdio, so they are external
+ *  data and are read, never trusted: a value of the wrong shape is dropped and
+ *  the default applies, rather than reaching the pipeline as a bad type. */
+function argString(args: Record<string, unknown>, key: string): string | undefined {
+  const value = args[key];
+  return typeof value === 'string' && value !== '' ? value : undefined;
+}
+
+function argStringArray(args: Record<string, unknown>, key: string): string[] {
+  const value = args[key];
+  if (!Array.isArray(value)) return [];
+  return value.filter((v): v is string => typeof v === 'string');
+}
+
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
-  const typedArgs = (args ?? {}) as Record<string, any>;
+  const typedArgs: Record<string, unknown> = args ?? {};
 
   if (name === 'list_intents') {
-    const intentDir = resolve(typedArgs['intentDir'] || '.agent/intent');
+    const intentDir = resolve(argString(typedArgs, 'intentDir') || '.agent/intent');
     try {
       const { intents, errors } = await parseIntentDir(intentDir);
       return {
@@ -144,8 +158,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   if (name === 'check_drift' || name === 'verify_fix') {
-    const repoRoot = resolve(typedArgs['repoRoot'] || '.');
-    const intentDir = resolve(typedArgs['intentDir'] || '.agent/intent');
+    const repoRoot = resolve(argString(typedArgs, 'repoRoot') || '.');
+    const intentDir = resolve(argString(typedArgs, 'intentDir') || '.agent/intent');
 
     try {
       const { intents, errors } = await parseIntentDir(intentDir);
@@ -163,8 +177,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const parsedDiff = parseDiff(diffText);
       
-      if (name === 'verify_fix' && typedArgs['files']) {
-        const files: string[] = typedArgs['files'];
+      const requestedFiles = argStringArray(typedArgs, 'files');
+      if (name === 'verify_fix' && requestedFiles.length > 0) {
+        const files = requestedFiles;
         parsedDiff.files = parsedDiff.files.filter(f => files.includes(f));
         for (const k of Object.keys(parsedDiff.hunks)) {
           if (!files.includes(k)) delete parsedDiff.hunks[k];
@@ -173,6 +188,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const commit = await getCurrentCommit(repoRoot);
       const apiKey = resolveLlmApiKey(process.env);
+      const llmProvider = apiKey ? resolveLlmProvider(process.env, apiKey) : undefined;
 
       const result = await runPipeline({
         intents,
@@ -181,6 +197,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         repoRoot,
         checkedAtCommit: commit,
         apiKey,
+        llmProvider,
       });
 
       const output = renderPlain(result.verdicts);
@@ -191,9 +208,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   if (name === 'get_architecture_context') {
-    const repoRoot = resolve(typedArgs['repoRoot'] || '.');
-    const intentDir = resolve(typedArgs['intentDir'] || '.agent/intent');
-    const files: string[] = typedArgs['files'] || [];
+    const repoRoot = resolve(argString(typedArgs, 'repoRoot') || '.');
+    const intentDir = resolve(argString(typedArgs, 'intentDir') || '.agent/intent');
+    const files = argStringArray(typedArgs, 'files');
 
     try {
       const { intents } = await parseIntentDir(intentDir);
@@ -241,8 +258,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   if (name === 'check_plan') {
-    const intentDir = resolve(typedArgs['intentDir'] || '.agent/intent');
-    const planText: string = typedArgs['plan_text'] || '';
+    const intentDir = resolve(argString(typedArgs, 'intentDir') || '.agent/intent');
+    const planText = argString(typedArgs, 'plan_text') ?? '';
 
     if (!planText.trim()) {
       return { isError: true, content: [{ type: 'text', text: 'plan_text is required.' }] };
@@ -257,10 +274,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      const mcpApiKey = resolveLlmApiKey(process.env);
       const result = await checkPlan({
         intents,
         planText,
-        apiKey: resolveLlmApiKey(process.env),
+        apiKey: mcpApiKey,
+        llmProvider: mcpApiKey ? resolveLlmProvider(process.env, mcpApiKey) : undefined,
       });
       return { content: [{ type: 'text', text: renderPlanReview(result) }] };
     } catch (err) {
@@ -269,10 +288,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   if (name === 'explain_violation') {
-    const repoRoot = resolve(typedArgs['repoRoot'] || '.');
-    const intentDir = resolve(typedArgs['intentDir'] || '.agent/intent');
-    const intentId: string = typedArgs['intentId'] || '';
-    const diffText: string = typedArgs['diff_text'] || '';
+    const repoRoot = resolve(argString(typedArgs, 'repoRoot') || '.');
+    const intentDir = resolve(argString(typedArgs, 'intentDir') || '.agent/intent');
+    const intentId = argString(typedArgs, 'intentId') ?? '';
+    const diffText = argString(typedArgs, 'diff_text') ?? '';
 
     try {
       const { intents } = await parseIntentDir(intentDir);

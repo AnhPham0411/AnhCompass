@@ -10,7 +10,7 @@ import {
   blockingViolations,
   warningViolations,
 } from '@anhcompass/core';
-import { resolveLlmApiKey } from '@anhcompass/llm';
+import { resolveLlmApiKey, resolveLlmProvider } from '@anhcompass/llm';
 import { resolve } from 'node:path';
 
 const MARKER = '<!-- anhcompass-drift-report -->';
@@ -52,6 +52,7 @@ async function main(): Promise<void> {
   const intentDir = resolve(core.getInput('intent-dir') || '.agent/intent');
   const diffRef = core.getInput('diff-ref') || 'origin/main';
   const apiKey = resolveLlmApiKey(process.env);
+  const llmProvider = apiKey ? resolveLlmProvider(process.env, apiKey) : undefined;
   const repoRoot = process.cwd();
 
   const { intents, errors } = await parseIntentDir(intentDir);
@@ -76,6 +77,7 @@ async function main(): Promise<void> {
     repoRoot,
     checkedAtCommit: commit,
     apiKey,
+    llmProvider,
     onProgress: (msg) => core.info(msg),
   });
 

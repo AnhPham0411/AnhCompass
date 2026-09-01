@@ -1,6 +1,7 @@
 import micromatch from 'micromatch';
 import type { Intent, Verdict } from '../intent/schema.js';
 import type { ParsedDiff } from '@anhcompass/graph';
+import type { LlmProvider } from '@anhcompass/llm';
 import { detectProvider } from '@anhcompass/graph';
 import { filterByScope } from './scope.js';
 import { getCachedVerdict, setCachedVerdict, buildCacheKey } from './cache.js';
@@ -17,6 +18,8 @@ export interface PipelineOpts {
   repoRoot: string;
   checkedAtCommit: string;
   apiKey?: string;
+  /** Which vendor the key belongs to. Resolved by the caller (flag or env). */
+  llmProvider?: LlmProvider;
   /** Pin the semantic model instead of using the default routing */
   model?: string;
   /** Retrieve semantic context through the import graph rather than a
@@ -99,6 +102,7 @@ export async function runPipeline(opts: PipelineOpts): Promise<PipelineResult> {
         diffText,
         repoRoot,
         apiKey,
+        llmProvider: opts.llmProvider,
         checkedAtCommit,
         cacheKey,
         provider,

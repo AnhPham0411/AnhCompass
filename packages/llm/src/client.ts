@@ -1,5 +1,12 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
+import crypto from 'node:crypto';
+import type { LlmProvider } from './env.js';
+
+/** A conformance verdict is a short call. Past this, the model is not slow —
+ *  something is wrong, and a check that hangs is worse than one that fails. */
+const REQUEST_TIMEOUT_MS = 30_000;
+const MAX_RETRIES = 3;
 
 export class LlmCallError extends Error {
   constructor(
@@ -51,22 +58,78 @@ export class LlmClient {
   private readonly anthropicClient?: Anthropic;
   private readonly apiKey: string;
   private readonly defaultModel: string;
-  private readonly provider: 'anthropic' | 'openai' | 'gemini';
+  private readonly provider: LlmProvider;
 
-  constructor(opts: { apiKey: string; model?: string }) {
+  constructor(opts: { apiKey: string; provider: LlmProvider; model?: string }) {
     this.apiKey = opts.apiKey;
+    this.provider = opts.provider;
     
-    if (this.apiKey.startsWith('sk-ant-')) {
-      this.provider = 'anthropic';
+    if (this.provider === 'anthropic') {
       this.anthropicClient = new Anthropic({ apiKey: this.apiKey });
       this.defaultModel = opts.model ?? 'claude-haiku-4-5';
-    } else if (this.apiKey.startsWith('sk-')) {
-      this.provider = 'openai';
+    } else if (this.provider === 'openai') {
       this.defaultModel = opts.model ?? 'gpt-4o-mini';
     } else {
-      this.provider = 'gemini';
       this.defaultModel = opts.model ?? 'gemini-1.5-flash';
     }
+  }
+
+  private redact(msg: string): string {
+    return msg.replaceAll(this.apiKey, '[REDACTED_API_KEY]');
+  }
+
+  /** One HTTP call, retried on the failures that are worth retrying: a 429, a
+   *  5xx, or a transport error. A 4xx other than 429 is the caller's fault and
+   *  retrying it only burns the budget.
+   *
+   *  The request id travels into the thrown error so a failure in a CI log can
+   *  be matched against the provider's own record of the request. */
+  private async fetchWithRetry(
+    url: string,
+    options: RequestInit,
+    intentId: string,
+    requestId: string,
+  ): Promise<Response> {
+    const maxRetries = MAX_RETRIES;
+    let lastFailure = 'unknown';
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+      try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        const retryable = response.status === 429 || response.status >= 500;
+        if (!retryable || attempt === maxRetries) return response;
+        // The body of a response we are about to throw away still holds a
+        // socket; leaving three of them open across three retries leaks.
+        lastFailure = `HTTP ${response.status}`;
+        await response.body?.cancel().catch(() => undefined);
+      } catch (err: unknown) {
+        clearTimeout(timeoutId);
+        const aborted = err instanceof Error && err.name === 'AbortError';
+        lastFailure = aborted
+          ? `timed out after ${REQUEST_TIMEOUT_MS}ms`
+          : this.redact(err instanceof Error ? err.message : String(err));
+        if (attempt === maxRetries) {
+          throw new LlmCallError(
+            intentId,
+            `${lastFailure} (request ${requestId}, ${attempt + 1} attempts)`,
+          );
+        }
+      }
+
+      await new Promise((r) => setTimeout(r, Math.min(1000 * 2 ** attempt, 10000)));
+    }
+
+    // The loop returns or throws on its final attempt; this is unreachable, and
+    // reported as such rather than as a provider error.
+    throw new LlmCallError(
+      intentId,
+      `retry loop ended without a response after ${lastFailure} (request ${requestId})`,
+    );
   }
 
   async callWithSchema<T>(opts: {
@@ -75,11 +138,11 @@ export class LlmClient {
     userPrompt: string;
     schema: z.ZodType<T, z.ZodTypeDef, unknown>;
     maxTokens?: number;
-    model?: string; // May be passed from budget routing (e.g., 'claude-haiku-4-5')
+    model?: string;
   }): Promise<{ result: T; usage: { inputTokens: number; outputTokens: number }; model: string }> {
     let model = opts.model ?? this.defaultModel;
+    const requestId = crypto.randomUUID();
     
-    // Auto-map model names if they come from Anthropic budget routing
     if (this.provider === 'openai') {
       if (model.includes('sonnet')) model = 'gpt-4o';
       else if (model.includes('haiku')) model = 'gpt-4o-mini';
@@ -99,6 +162,10 @@ export class LlmClient {
           max_tokens: maxTokens,
           system: opts.systemPrompt,
           messages: [{ role: 'user', content: opts.userPrompt }],
+        }, {
+          timeout: REQUEST_TIMEOUT_MS,
+          maxRetries: MAX_RETRIES,
+          headers: { 'x-request-id': requestId }
         });
 
         const block = response.content[0];
@@ -111,11 +178,12 @@ export class LlmClient {
           outputTokens: response.usage.output_tokens,
         };
       } else if (this.provider === 'openai') {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        const response = await this.fetchWithRetry('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${this.apiKey}`,
+            'x-request-id': requestId,
           },
           body: JSON.stringify({
             model,
@@ -127,7 +195,7 @@ export class LlmClient {
             ],
             response_format: { type: 'json_object' }
           }),
-        });
+        }, opts.intentId, requestId);
 
         if (!response.ok) {
           throw new Error(`OpenAI API error: ${response.status} ${await response.text()}`);
@@ -144,9 +212,9 @@ export class LlmClient {
         };
       } else {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
-        const response = await fetch(url, {
+        const response = await this.fetchWithRetry(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-request-id': requestId },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: opts.systemPrompt }] },
             contents: [{ parts: [{ text: opts.userPrompt }] }],
@@ -156,7 +224,7 @@ export class LlmClient {
               responseMimeType: "application/json",
             }
           }),
-        });
+        }, opts.intentId, requestId);
 
         if (!response.ok) {
           throw new Error(`Gemini API error: ${response.status} ${await response.text()}`);
@@ -172,8 +240,14 @@ export class LlmClient {
           outputTokens: parsed.data.usageMetadata?.candidatesTokenCount ?? 0,
         };
       }
-    } catch (err) {
-      throw new LlmCallError(opts.intentId, err);
+    } catch (err: unknown) {
+      // A retry failure already carries the request id and attempt count —
+      // re-wrapping it would bury both behind a second prefix.
+      if (err instanceof LlmCallError) throw err;
+      throw new LlmCallError(
+        opts.intentId,
+        this.redact(err instanceof Error ? err.message : String(err)),
+      );
     }
 
     const cleaned = rawText.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();

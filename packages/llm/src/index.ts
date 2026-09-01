@@ -22,4 +22,13 @@ export {
 } from './budget.js';
 export { logLlmCall, hashString } from './log.js';
 export type { LlmLogEntry } from './log.js';
-export { resolveLlmApiKey, LLM_API_KEY_ENV_VARS } from './env.js';
+export {
+  resolveLlmApiKey,
+  LLM_API_KEY_ENV_VARS,
+  resolveLlmProvider,
+  inferProviderFromKey,
+  providerWasInferred,
+  UnknownLlmProviderError,
+  LLM_PROVIDERS,
+} from './env.js';
+export type { LlmProvider } from './env.js';

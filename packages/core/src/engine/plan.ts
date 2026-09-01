@@ -1,11 +1,13 @@
 import { z } from 'zod';
 import {
   LlmClient,
+  inferProviderFromKey,
   PLAN_REVIEW_SYSTEM_PROMPT_V1,
   buildPlanPrompt,
   routeModel,
   VERDICT_MAX_OUTPUT_TOKENS,
 } from '@anhcompass/llm';
+import type { LlmProvider } from '@anhcompass/llm';
 import type { Intent } from '../intent/schema.js';
 
 export const PlanFindingSchema = z.object({
@@ -25,6 +27,9 @@ export interface PlanCheckOpts {
   intents: Intent[];
   planText: string;
   apiKey?: string;
+  /** Which vendor the key belongs to. Resolved by the caller (flag or env);
+   *  falls back to the key's shape, which is a guess, not a contract. */
+  llmProvider?: LlmProvider;
   model?: string;
 }
 
@@ -73,7 +78,11 @@ export async function checkPlan(opts: PlanCheckOpts): Promise<PlanCheckResult> {
   });
 
   const model = opts.model ?? routeModel(Math.ceil(userPrompt.length / 4));
-  const client = new LlmClient({ apiKey: opts.apiKey, model });
+  const client = new LlmClient({
+    apiKey: opts.apiKey,
+    provider: opts.llmProvider ?? inferProviderFromKey(opts.apiKey),
+    model,
+  });
 
   let findings: PlanFinding[];
   try {

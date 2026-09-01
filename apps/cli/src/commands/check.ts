@@ -15,7 +15,7 @@ import {
   loadBaseline,
   compareBaseline,
 } from '@anhcompass/core';
-import { resolveLlmApiKey, LLM_API_KEY_ENV_VARS } from '@anhcompass/llm';
+import { resolveLlmApiKey, LLM_API_KEY_ENV_VARS, resolveLlmProvider, providerWasInferred } from '@anhcompass/llm';
 import pc from 'picocolors';
 
 interface CheckOpts {
@@ -28,6 +28,7 @@ interface CheckOpts {
   compareBaseline?: boolean;
   baselinePath: string;
   model?: string;
+  provider?: string;
   /** commander sets this false when --no-graph-retrieval is passed */
   graphRetrieval: boolean;
 }
@@ -47,6 +48,10 @@ export function registerCheck(program: Command): void {
     .option(
       '--model <id>',
       'Pin the model for semantic checks (default: the accurate tier — see BENCHMARKS.md)',
+    )
+    .option(
+      '--provider <name>',
+      'LLM vendor for semantic checks: anthropic, openai or gemini (default: LLM_PROVIDER, else guessed from the key)',
     )
     .option(
       '--no-graph-retrieval',
@@ -91,6 +96,23 @@ export function registerCheck(program: Command): void {
       const parsedDiff = parseDiff(diffText);
       const checkedAtCommit = await getCurrentCommit(repoRoot);
       const apiKey = resolveLlmApiKey(process.env);
+      let llmProvider;
+      try {
+        llmProvider = apiKey ? resolveLlmProvider(process.env, apiKey, opts.provider) : undefined;
+      } catch (err) {
+        // A typo in --provider is a user mistake; the error class already says
+        // what the valid values are, so print that rather than a stack trace.
+        console.error(pc.red(err instanceof Error ? err.message : String(err)));
+        process.exit(1);
+      }
+
+      if (apiKey && llmProvider && providerWasInferred(process.env, opts.provider)) {
+        console.log(
+          pc.dim(
+            `  LLM provider guessed from the key shape: ${llmProvider}. Set --provider or LLM_PROVIDER to be explicit.`,
+          ),
+        );
+      }
 
       if (!apiKey) {
         console.log(
@@ -110,6 +132,7 @@ export function registerCheck(program: Command): void {
         repoRoot,
         checkedAtCommit,
         apiKey,
+        llmProvider,
         model: opts.model,
         useGraphRetrieval: opts.graphRetrieval,
         onProgress: (msg) => console.log(pc.dim(`  ${msg}`)),

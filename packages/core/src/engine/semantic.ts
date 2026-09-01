@@ -9,6 +9,7 @@ import micromatch from 'micromatch';
 export const CONTEXT_TOKEN_BUDGET = 6000;
 import {
   LlmClient,
+  inferProviderFromKey,
   CONFORMANCE_SYSTEM_PROMPT_V2,
   buildSemanticPrompt,
   routeModel,
@@ -17,6 +18,7 @@ import {
   CONTEXT_PROMPT_CHAR_LIMIT,
   logLlmCall,
 } from '@anhcompass/llm';
+import type { LlmProvider } from '@anhcompass/llm';
 import { z } from 'zod';
 
 export const SemanticVerdictResponseSchema = z.object({
@@ -50,6 +52,9 @@ export interface SemanticCheckOpts {
   diffText: string;
   repoRoot: string;
   apiKey: string;
+  /** Which vendor the key belongs to. Resolved by the caller (flag or env);
+   *  falls back to the key's shape, which is a guess, not a contract. */
+  llmProvider?: LlmProvider;
   checkedAtCommit: string;
   cacheKey: string;
   provider?: GraphProvider;
@@ -115,7 +120,11 @@ export async function runSemanticCheck(opts: SemanticCheckOpts): Promise<Verdict
     Math.min(diffText.length, DIFF_PROMPT_CHAR_LIMIT) / 4;
 
   const model = opts.model ?? routeModel(Math.ceil(estimatedTokens));
-  const client = new LlmClient({ apiKey, model });
+  const client = new LlmClient({
+    apiKey,
+    provider: opts.llmProvider ?? inferProviderFromKey(apiKey),
+    model,
+  });
 
   const userPrompt = buildSemanticPrompt({
     intentId: intent.frontmatter.id,
