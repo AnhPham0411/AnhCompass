@@ -1,0 +1,450 @@
+[
+  {
+    "id": "ho-det-mts-import",
+    "category": "wrong",
+    "engine": "deterministic",
+    "split": "holdout",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/loader.mts b/src/loader.mts\n--- a/src/loader.mts\n+++ b/src/loader.mts\n@@ -1,1 +1,3 @@\n+import _ from 'lodash';\n+export const x = _;\n",
+    "notes": "A .mts module is source the indexer claims to read. An import there is a dependency."
+  },
+  {
+    "id": "ho-det-cts-require",
+    "category": "wrong",
+    "engine": "deterministic",
+    "split": "holdout",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/legacy.cts b/src/legacy.cts\n--- a/src/legacy.cts\n+++ b/src/legacy.cts\n@@ -1,1 +1,3 @@\n+const _ = require('lodash');\n+module.exports = _;\n",
+    "notes": "CommonJS require in a .cts module."
+  },
+  {
+    "id": "ho-det-tsx-import",
+    "category": "wrong",
+    "engine": "deterministic",
+    "split": "holdout",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/ui/Button.tsx b/src/ui/Button.tsx\n--- a/src/ui/Button.tsx\n+++ b/src/ui/Button.tsx\n@@ -1,1 +1,3 @@\n+import { chunk } from 'lodash';\n+export const B = () => chunk([1]);\n",
+    "notes": "JSX file. The extension changes the parser, not the rule."
+  },
+  {
+    "id": "ho-det-shebang-then-import",
+    "category": "edge",
+    "engine": "deterministic",
+    "split": "holdout",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/bin.ts b/src/bin.ts\n--- a/src/bin.ts\n+++ b/src/bin.ts\n@@ -1,1 +1,4 @@\n+#!/usr/bin/env node\n+import _ from 'lodash';\n+_.noop();\n",
+    "notes": "A shebang line is not a comment to the module system; the import below it is real."
+  },
+  {
+    "id": "ho-det-scoped-deep-subpath",
+    "category": "edge",
+    "engine": "deterministic",
+    "split": "holdout",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-internal-db",
+      "title": "no-internal-db",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "src/** must not import @acme/db, at any depth.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "@acme/db"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "src/** must not import @acme/db, at any depth.",
+    "diff": "diff --git a/src/repo.ts b/src/repo.ts\n--- a/src/repo.ts\n+++ b/src/repo.ts\n@@ -1,1 +1,3 @@\n+import { pool } from '@acme/db/pg/pool/index.js';\n+export const p = pool;\n",
+    "notes": "A deep subpath of a scoped package is still that package."
+  },
+  {
+    "id": "ho-det-lookalike-scoped",
+    "category": "edge",
+    "engine": "deterministic",
+    "split": "holdout",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-internal-db",
+      "title": "no-internal-db",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "src/** must not import @acme/db.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "@acme/db"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "src/** must not import @acme/db.",
+    "diff": "diff --git a/src/repo.ts b/src/repo.ts\n--- a/src/repo.ts\n+++ b/src/repo.ts\n@@ -1,1 +1,3 @@\n+import { x } from '@acme/db-utils';\n+export const p = x;\n",
+    "notes": "@acme/db-utils is a different package. Prefix matching without a boundary reports this."
+  },
+  {
+    "id": "ho-det-lookalike-suffix",
+    "category": "edge",
+    "engine": "deterministic",
+    "split": "holdout",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/util.ts b/src/util.ts\n--- a/src/util.ts\n+++ b/src/util.ts\n@@ -1,1 +1,3 @@\n+import _ from 'not-lodash';\n+export const x = _;\n",
+    "notes": "A package whose name ends in the forbidden one is not the forbidden one."
+  },
+  {
+    "id": "ho-det-import-in-jsx-text",
+    "category": "edge",
+    "engine": "deterministic",
+    "split": "holdout",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/ui/Docs.tsx b/src/ui/Docs.tsx\n--- a/src/ui/Docs.tsx\n+++ b/src/ui/Docs.tsx\n@@ -1,1 +1,2 @@\n+export const D = () => <p>run: import _ from 'lodash'</p>;\n",
+    "notes": "JSX text content is not code. Reporting it tells a developer their prose is a dependency."
+  },
+  {
+    "id": "ho-det-import-in-nested-template",
+    "category": "edge",
+    "engine": "deterministic",
+    "split": "holdout",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/codegen.ts b/src/codegen.ts\n--- a/src/codegen.ts\n+++ b/src/codegen.ts\n@@ -1,1 +1,2 @@\n+export const t = `outer ${`inner import _ from 'lodash'`} end`;\n",
+    "notes": "A template literal nested inside a substitution is still a string."
+  },
+  {
+    "id": "ho-det-require-in-nested-template-substitution",
+    "category": "edge",
+    "engine": "deterministic",
+    "split": "holdout",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/codegen.ts b/src/codegen.ts\n--- a/src/codegen.ts\n+++ b/src/codegen.ts\n@@ -1,1 +1,2 @@\n+export const t = `x ${require('lodash').noop()} y`;\n",
+    "notes": "Code inside a template substitution runs. This require is a real dependency."
+  },
+  {
+    "id": "ho-det-out-of-scope-sibling",
+    "category": "correct",
+    "engine": "deterministic",
+    "split": "holdout",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/tools/build.ts b/tools/build.ts\n--- a/tools/build.ts\n+++ b/tools/build.ts\n@@ -1,1 +1,3 @@\n+import _ from 'lodash';\n+_.noop();\n",
+    "notes": "tools/ is outside src/**. The rule does not reach it."
+  },
+  {
+    "id": "ho-det-waiver-on-neighbouring-line",
+    "category": "edge",
+    "engine": "deterministic",
+    "split": "holdout",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Application code under src/ must not depend on lodash, directly or transitively.",
+    "diff": "diff --git a/src/util.ts b/src/util.ts\n--- a/src/util.ts\n+++ b/src/util.ts\n@@ -1,1 +1,4 @@\n+// anhcompass-disable-line no-lodash\n+\n+import _ from 'lodash';\n",
+    "notes": "A line waiver covers its own line. Separated by a blank line it waives nothing."
+  },
+  {
+    "id": "ho-det-python-relative-import",
+    "category": "edge",
+    "engine": "deterministic",
+    "split": "holdout",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-requests",
+      "title": "no-requests",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on requests.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Application code under src/ must not depend on requests.",
+    "diff": "diff --git a/src/client.py b/src/client.py\n--- a/src/client.py\n+++ b/src/client.py\n@@ -1,1 +1,3 @@\n+from . import requests\n+x = requests\n",
+    "notes": "A relative import of a local module named requests is not the third-party package."
+  },
+  {
+    "id": "ho-det-python-importlib",
+    "category": "edge",
+    "engine": "deterministic",
+    "split": "holdout",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-requests",
+      "title": "no-requests",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Application code under src/ must not depend on requests.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "requests"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Application code under src/ must not depend on requests.",
+    "diff": "diff --git a/src/client.py b/src/client.py\n--- a/src/client.py\n+++ b/src/client.py\n@@ -1,1 +1,3 @@\n+import importlib\n+requests = importlib.import_module('requests')\n",
+    "notes": "Dynamic import by name is still a dependency on requests."
+  }
+]

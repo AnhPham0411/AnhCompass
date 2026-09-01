@@ -1,0 +1,389 @@
+[
+  {
+    "engine": "graph",
+    "id": "ho-graph-seven-hop-transitive",
+    "category": "edge",
+    "split": "holdout",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "src/** must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "No transitive lodash dependency.",
+    "fixture": {
+      "src/h1.ts": "import { h2 } from './h2';\nexport const h1 = h2;\n",
+      "src/h2.ts": "import { h3 } from './h3';\nexport const h2 = h3;\n",
+      "src/h3.ts": "import { h4 } from './h4';\nexport const h3 = h4;\n",
+      "src/h4.ts": "import { h5 } from './h5';\nexport const h4 = h5;\n",
+      "src/h5.ts": "import { h6 } from './h6';\nexport const h5 = h6;\n",
+      "src/h6.ts": "import { h7 } from './h7';\nexport const h6 = h7;\n",
+      "src/h7.ts": "import { h8 } from './h8';\nexport const h7 = h8;\n",
+      "src/h8.ts": "import _ from 'lodash';\nexport const h8 = _;\n"
+    },
+    "diff": "diff --git a/src/h1.ts b/src/h1.ts\n--- a/src/h1.ts\n+++ b/src/h1.ts\n@@ -1,1 +1,2 @@\n+export const touched = true;\n",
+    "notes": "h1 reaches lodash through seven hops. Depth does not make a dependency stop existing."
+  },
+  {
+    "engine": "graph",
+    "id": "ho-graph-diamond-two-paths",
+    "category": "wrong",
+    "split": "holdout",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "src/** must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "No transitive lodash dependency.",
+    "fixture": {
+      "src/d_a.ts": "import { b } from './d_b';\nimport { c } from './d_c';\nexport const a = [b, c];\n",
+      "src/d_b.ts": "import { d } from './d_d';\nexport const b = d;\n",
+      "src/d_c.ts": "import { d } from './d_d';\nexport const c = d;\n",
+      "src/d_d.ts": "import _ from 'lodash';\nexport const d = _;\n"
+    },
+    "diff": "diff --git a/src/d_a.ts b/src/d_a.ts\n--- a/src/d_a.ts\n+++ b/src/d_a.ts\n@@ -1,1 +1,2 @@\n+export const touched = true;\n",
+    "notes": "Two independent paths reach the same forbidden module."
+  },
+  {
+    "engine": "graph",
+    "id": "ho-graph-barrel-reexport",
+    "category": "edge",
+    "split": "holdout",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "src/** must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "No transitive lodash dependency.",
+    "fixture": {
+      "src/b_app.ts": "import { helper } from './lib';\nexport const app = helper;\n",
+      "src/lib/index.ts": "export * from './helper';\n",
+      "src/lib/helper.ts": "import _ from 'lodash';\nexport const helper = _;\n"
+    },
+    "diff": "diff --git a/src/b_app.ts b/src/b_app.ts\n--- a/src/b_app.ts\n+++ b/src/b_app.ts\n@@ -1,1 +1,2 @@\n+export const touched = true;\n",
+    "notes": "A barrel file is a hop. `export * from` carries the dependency through it."
+  },
+  {
+    "engine": "graph",
+    "id": "ho-graph-clean-chain",
+    "category": "correct",
+    "split": "holdout",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "src/** must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "No transitive lodash dependency.",
+    "fixture": {
+      "src/c1.ts": "import { c2 } from './c2';\nexport const c1 = c2;\n",
+      "src/c2.ts": "import { c3 } from './c3';\nexport const c2 = c3;\n",
+      "src/c3.ts": "import { c4 } from './c4';\nexport const c3 = c4;\n",
+      "src/c4.ts": "export const c4 = 1;\n"
+    },
+    "diff": "diff --git a/src/c1.ts b/src/c1.ts\n--- a/src/c1.ts\n+++ b/src/c1.ts\n@@ -1,1 +1,2 @@\n+export const touched = true;\n",
+    "notes": "A long chain that never reaches the forbidden module is not a violation."
+  },
+  {
+    "engine": "graph",
+    "id": "ho-graph-cycle-four",
+    "category": "edge",
+    "split": "holdout",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-cycle-src",
+      "title": "no-cycle-src",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Modules under src/** must not form a dependency cycle.",
+      "deterministic": {
+        "kind": "no-cycle",
+        "from": [
+          "src/**"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Cycles make modules impossible to test in isolation.",
+    "fixture": {
+      "src/q1.ts": "import { q2 } from './q2';\nexport const q1 = q2;\n",
+      "src/q2.ts": "import { q3 } from './q3';\nexport const q2 = q3;\n",
+      "src/q3.ts": "import { q4 } from './q4';\nexport const q3 = q4;\n",
+      "src/q4.ts": "import { q1 } from './q1';\nexport const q4 = q1;\n"
+    },
+    "diff": "diff --git a/src/q1.ts b/src/q1.ts\n--- a/src/q1.ts\n+++ b/src/q1.ts\n@@ -1,1 +1,2 @@\n+export const touched = true;\n",
+    "notes": "Four-file cycle. The dev corpus stops at three."
+  },
+  {
+    "engine": "graph",
+    "id": "ho-graph-self-import",
+    "category": "edge",
+    "split": "holdout",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-cycle-src",
+      "title": "no-cycle-src",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "Modules under src/** must not form a dependency cycle.",
+      "deterministic": {
+        "kind": "no-cycle",
+        "from": [
+          "src/**"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Cycles make modules impossible to test in isolation.",
+    "fixture": {
+      "src/self.ts": "import { s } from './self';\nexport const s = 1;\nexport const t = s;\n"
+    },
+    "diff": "diff --git a/src/self.ts b/src/self.ts\n--- a/src/self.ts\n+++ b/src/self.ts\n@@ -1,1 +1,2 @@\n+export const touched = true;\n",
+    "notes": "A module importing itself is a cycle of length one."
+  },
+  {
+    "engine": "graph",
+    "id": "ho-graph-layer-skip-via-unlayered",
+    "category": "wrong",
+    "split": "holdout",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "layers",
+      "title": "layers",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "api may depend on service, service on infra. api must not reach infra.",
+      "deterministic": {
+        "kind": "layer-boundary",
+        "layers": {
+          "api": [
+            "src/api/**"
+          ],
+          "service": [
+            "src/services/**"
+          ],
+          "infra": [
+            "src/infra/**"
+          ]
+        },
+        "allow": [
+          "api -> service",
+          "service -> infra"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Layer boundaries hold transitively.",
+    "fixture": {
+      "src/api/order.ts": "import { save } from '../shared/persist';\nexport const o = save;\n",
+      "src/shared/persist.ts": "import { db } from '../infra/db';\nexport const save = db;\n",
+      "src/infra/db.ts": "export const db = 1;\n"
+    },
+    "diff": "diff --git a/src/api/order.ts b/src/api/order.ts\n--- a/src/api/order.ts\n+++ b/src/api/order.ts\n@@ -1,1 +1,2 @@\n+export const touched = true;\n",
+    "notes": "src/shared is in no layer, so it cannot launder an api -> infra dependency."
+  },
+  {
+    "engine": "graph",
+    "id": "ho-graph-layer-allowed-two-hops",
+    "category": "correct",
+    "split": "holdout",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "layers",
+      "title": "layers",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "api may depend on service, service on infra. api must not reach infra.",
+      "deterministic": {
+        "kind": "layer-boundary",
+        "layers": {
+          "api": [
+            "src/api/**"
+          ],
+          "service": [
+            "src/services/**"
+          ],
+          "infra": [
+            "src/infra/**"
+          ]
+        },
+        "allow": [
+          "api -> service",
+          "service -> infra"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "Layer boundaries hold transitively.",
+    "fixture": {
+      "src/api/order.ts": "import { place } from '../services/order';\nexport const o = place;\n",
+      "src/services/order.ts": "import { db } from '../infra/db';\nexport const place = db;\n",
+      "src/infra/db.ts": "export const db = 1;\n"
+    },
+    "diff": "diff --git a/src/api/order.ts b/src/api/order.ts\n--- a/src/api/order.ts\n+++ b/src/api/order.ts\n@@ -1,1 +1,2 @@\n+export const touched = true;\n",
+    "notes": "api -> service -> infra follows two allowed edges. Reachability alone would call this a breach."
+  },
+  {
+    "engine": "graph",
+    "id": "ho-graph-tsconfig-base-alias",
+    "category": "edge",
+    "split": "holdout",
+    "expected": "violation",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/**"
+      ],
+      "check": "deterministic",
+      "rule": "src/** must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "No transitive lodash dependency.",
+    "fixture": {
+      "tsconfig.base.json": "{\n  \"compilerOptions\": {\n    \"baseUrl\": \".\",\n    \"paths\": {\n      \"@app/*\": [\n        \"src/*\"\n      ]\n    }\n  }\n}\n",
+      "src/api/order.ts": "import { db } from '@app/infra/db';\nexport const o = db;\n",
+      "src/infra/db.ts": "import _ from 'lodash';\nexport const db = _;\n"
+    },
+    "diff": "diff --git a/src/api/order.ts b/src/api/order.ts\n--- a/src/api/order.ts\n+++ b/src/api/order.ts\n@@ -1,1 +1,2 @@\n+export const touched = true;\n",
+    "notes": "The alias is declared in tsconfig.base.json, the monorepo convention. An unresolved alias hides the hop."
+  },
+  {
+    "engine": "graph",
+    "id": "ho-graph-unreachable-violator",
+    "category": "correct",
+    "split": "holdout",
+    "expected": "pass",
+    "intentFrontmatter": {
+      "schema_version": 1,
+      "id": "no-lodash",
+      "title": "no-lodash",
+      "scope": [
+        "src/api/**"
+      ],
+      "check": "deterministic",
+      "rule": "src/api/** must not depend on lodash, directly or transitively.",
+      "deterministic": {
+        "kind": "no-import",
+        "from": [
+          "src/api/**"
+        ],
+        "to": [
+          "lodash"
+        ]
+      },
+      "severity": "error",
+      "status": "active",
+      "created": "2026-09-01"
+    },
+    "intentBody": "No transitive lodash dependency from the api layer.",
+    "fixture": {
+      "src/api/order.ts": "export const o = 1;\n",
+      "src/other/thing.ts": "import _ from 'lodash';\nexport const t = _;\n"
+    },
+    "diff": "diff --git a/src/api/order.ts b/src/api/order.ts\n--- a/src/api/order.ts\n+++ b/src/api/order.ts\n@@ -1,1 +1,2 @@\n+export const touched = true;\n",
+    "notes": "Another file in the repo imports lodash, but nothing in scope reaches it."
+  }
+]

@@ -10,6 +10,7 @@ export const BenchCaseSchema = z.object({
   /** `graph` cases need a real file tree and only run once the graph engine
    *  lands (Phase 1) — they are skipped, not failed, until then. */
   engine: z.enum(['deterministic', 'semantic', 'graph']),
+  split: z.enum(['dev', 'holdout']).default('dev'),
   expected: z.enum(['violation', 'pass']),
   intentFrontmatter: IntentFrontmatterSchema,
   intentBody: z.string().default(''),

@@ -55,6 +55,16 @@ interface EngineMetrics {
   latency: { mean: number; p50: number; p95: number };
 }
 
+/** Did the case file itself carry a `split`, or is the value the schema default? */
+function rawDeclaresSplit(raw: unknown, id: string): boolean {
+  if (!Array.isArray(raw)) return false;
+  const entry = raw.find(
+    (c): c is Record<string, unknown> =>
+      typeof c === 'object' && c !== null && (c as { id?: unknown }).id === id,
+  );
+  return entry !== undefined && 'split' in entry;
+}
+
 async function loadCases(): Promise<BenchCase[]> {
   let entries: string[];
   try {
@@ -67,13 +77,24 @@ async function loadCases(): Promise<BenchCase[]> {
   const cases: BenchCase[] = [];
   const seen = new Set<string>();
   for (const entry of entries.filter((e) => e.endsWith('.json'))) {
-    const raw = JSON.parse(await readFile(join(CASES_DIR, entry), 'utf-8'));
+    const raw: unknown = JSON.parse(await readFile(join(CASES_DIR, entry), 'utf-8'));
     const parsed = BenchCaseFileSchema.safeParse(raw);
     if (!parsed.success) {
       console.error(`Invalid case file ${entry}:\n${parsed.error.message}`);
       process.exit(1);
     }
+    // The directory decides the split; a case file may not opt itself out of
+    // the holdout by declaring otherwise. Disagreement is a mistake, not a
+    // preference, so it stops the run rather than being silently overwritten.
+    const splitFromPath = entry.includes('holdout') ? 'holdout' : 'dev';
     for (const c of parsed.data) {
+      if (c.split !== splitFromPath && rawDeclaresSplit(raw, c.id)) {
+        console.error(
+          `Case ${c.id} declares split "${c.split}" but lives under ${splitFromPath}/`,
+        );
+        process.exit(1);
+      }
+      c.split = splitFromPath;
       if (seen.has(c.id)) {
         console.error(`Duplicate case id: ${c.id} (in ${entry})`);
         process.exit(1);
@@ -390,24 +411,31 @@ async function main(): Promise<void> {
     ];
 
     const slices: Record<string, EngineMetrics> = {};
-    if (detResults.length > 0) slices['deterministic (all)'] = computeMetrics(detResults);
-    if (dualResults.length > 0) {
-      slices['deterministic + graph provider'] = computeMetrics(dualResults);
-    }
-    if (graphResults.length > 0) slices['graph (all)'] = computeMetrics(graphResults);
+    
+    const addSlice = (name: string, results: CaseResult[]) => {
+      const dev = results.filter(r => r.case.split === 'dev');
+      const holdout = results.filter(r => r.case.split === 'holdout');
+      if (dev.length > 0) slices[`${name} (dev)`] = computeMetrics(dev);
+      if (holdout.length > 0) slices[`${name} (holdout)`] = computeMetrics(holdout);
+    };
+
+    if (detResults.length > 0) addSlice('deterministic (all)', detResults);
+    if (dualResults.length > 0) addSlice('deterministic + graph provider', dualResults);
+    if (graphResults.length > 0) addSlice('graph (all)', graphResults);
     if (semResults.length > 0) {
-      slices[compareRetrieval ? 'semantic / graph retrieval (default)' : 'semantic (all)'] =
-        computeMetrics(semResults);
+      addSlice(compareRetrieval ? 'semantic / graph retrieval (default)' : 'semantic (all)', semResults);
     }
     if (semGlobResults.length > 0) {
-      slices['semantic / glob-walk retrieval'] = computeMetrics(semGlobResults);
+      addSlice('semantic / glob-walk retrieval', semGlobResults);
     }
     for (const engine of ['deterministic', 'graph', 'semantic'] as const) {
       for (const cat of ['correct', 'wrong', 'edge', 'ai-generated'] as const) {
-        const slice = all.filter(
-          (r) => !r.variant && r.case.engine === engine && r.case.category === cat,
-        );
-        if (slice.length > 0) slices[`${engine} / ${cat}`] = computeMetrics(slice);
+        for (const split of ['dev', 'holdout'] as const) {
+          const slice = all.filter(
+            (r) => !r.variant && r.case.engine === engine && r.case.category === cat && r.case.split === split,
+          );
+          if (slice.length > 0) slices[`${engine} / ${cat} (${split})`] = computeMetrics(slice);
+        }
       }
     }
 
