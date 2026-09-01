@@ -7,7 +7,12 @@ on:
 
 jobs:
   ci:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [20, 22]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -15,15 +20,21 @@ jobs:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r build
       - run: pnpm -r typecheck
       - run: pnpm lint
       - run: pnpm test
-      # deterministic + graph benchmark — free/offline; exit 2 means label/engine mismatch.
-      # The semantic slice needs an API key and is run manually, not in CI.
       - run: pnpm bench -- --graph
+      # `secrets` is not a context step-level `if` can read, so the key is
+      # lifted into env first and the condition reads that.
+      - name: Run semantic benchmark
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+        if: env.LLM_API_KEY != '' && matrix.os == 'ubuntu-latest' && matrix.node-version == 20
+        run: pnpm bench -- --semantic
       - run: node apps/cli/dist/index.js compile
       - run: node apps/cli/dist/index.js doctor

@@ -1,5 +1,5 @@
 import type { Command } from 'commander';
-import { writeFile, mkdir } from 'node:fs/promises';
+import { writeFile, mkdir, readFile, appendFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import pc from 'picocolors';
 
@@ -53,6 +53,10 @@ jobs:
             console.log("AnhCompass checking drift...");
 `;
 
+function isNotFound(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: string }).code === 'ENOENT';
+}
+
 export function registerInit(program: Command): void {
   program
     .command('init')
@@ -76,6 +80,36 @@ export function registerInit(program: Command): void {
         await mkdir(githubWorkflows, { recursive: true });
         await writeFile(join(githubWorkflows, 'anhcompass.yml'), GITHUB_WORKFLOW, 'utf-8');
         console.log(pc.green('✓ Created .github/workflows/anhcompass.yml'));
+
+        // Only a genuine ENOENT may lead to a write. Any other read failure — a
+        // directory, a permission error, a locked file — means a .gitignore is
+        // there and we cannot see it, and replacing it with one line would
+        // destroy work that is not ours.
+        const gitignorePath = join(root, '.gitignore');
+        let existing: string | null = null;
+        let readFailure: unknown = null;
+        try {
+          existing = await readFile(gitignorePath, 'utf-8');
+        } catch (err) {
+          readFailure = err;
+        }
+
+        if (existing !== null) {
+          if (!existing.includes('.anhcompass/')) {
+            const separator = existing.endsWith('\n') ? '' : '\n';
+            await appendFile(gitignorePath, `${separator}.anhcompass/\n`, 'utf-8');
+            console.log(pc.green('✓ Added .anhcompass/ to .gitignore'));
+          }
+        } else if (isNotFound(readFailure)) {
+          await writeFile(gitignorePath, '.anhcompass/\n', 'utf-8');
+          console.log(pc.green('✓ Created .gitignore with .anhcompass/'));
+        } else {
+          console.log(
+            pc.yellow(
+              `! Could not read .gitignore (${String(readFailure)}) — add .anhcompass/ to it yourself`,
+            ),
+          );
+        }
 
         console.log(pc.green('\nInitialization complete!'));
         console.log(`Run ${pc.cyan('anhcompass doctor')} to verify health status.`);

@@ -5,12 +5,16 @@ import { registerIntentNew } from './commands/intent-new.js';
 import { registerCheck } from './commands/check.js';
 import { registerInit } from './commands/init.js';
 
+/** Kept in step with apps/cli/package.json by hand: the bundle has no
+ *  package.json beside it to read at runtime. */
+const CLI_VERSION = '0.1.0';
+
 const program = new Command();
 
 program
   .name('anhcompass')
   .description('Intent & drift layer for coding agents')
-  .version('0.0.1');
+  .version(CLI_VERSION);
 
 registerCompile(program);
 registerDoctor(program);

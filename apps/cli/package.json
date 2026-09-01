@@ -1,8 +1,18 @@
 {
   "name": "anhcompass",
-  "version": "0.0.1",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AnhPham0411/AnhCompass.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "anhcompass": "./dist/index.js"
   },
@@ -13,16 +23,30 @@
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
-    "@anhcompass/core": "workspace:*",
-    "@anhcompass/graph": "workspace:*",
-    "@anhcompass/llm": "workspace:*",
+    "@anthropic-ai/sdk": "^0.30.0",
     "commander": "^12.1.0",
-    "picocolors": "^1.1.1"
+    "gray-matter": "^4.0.3",
+    "micromatch": "^4.0.8",
+    "picocolors": "^1.1.1",
+    "typescript": "^5.6.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "tsup": "*",
-    "typescript": "*",
     "tsx": "*",
-    "@types/node": "*"
-  }
+    "@types/node": "*",
+    "@anhcompass/core": "workspace:*",
+    "@anhcompass/graph": "workspace:*",
+    "@anhcompass/llm": "workspace:*"
+  },
+  "description": "Intent and architectural drift layer for coding agents",
+  "license": "MIT",
+  "keywords": [
+    "architecture",
+    "linter",
+    "ai-agents",
+    "mcp",
+    "drift",
+    "codebase"
+  ]
 }

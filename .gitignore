@@ -10,3 +10,5 @@ dist/
 real-demo*/
 generate-*.js
 benchmarks/results/
+.anhcompass/
+.stryker-tmp/
